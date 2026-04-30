@@ -41,15 +41,14 @@ def show_reviewer(role: str, rule_store: RuleStore, config: dict) -> None:
     evaluate = st.button("Evaluate Compliance", type="primary", disabled=not transcript.strip())
 
     if evaluate and transcript.strip():
-        with st.status("Running compliance evaluation...", expanded=True) as status:
+        # Step 1 & 2: detection + retrieval inside a collapsible status
+        with st.status("Preparing evaluation...", expanded=True) as status:
             try:
-                # Step 1: Trigger detection
                 st.write("Detecting regulatory triggers...")
                 detector = TriggerDetector()
                 triggers = detector.detect(transcript)
                 st.write(f"Triggers detected: {triggers if triggers else 'none'}")
 
-                # Step 2: Rule retrieval
                 st.write("Retrieving applicable rules...")
                 retriever = CorrectiveRetriever(
                     rule_store=rule_store,
@@ -66,71 +65,65 @@ def show_reviewer(role: str, rule_store: RuleStore, config: dict) -> None:
                     )
                     st.stop()
 
-                st.write(f"Rules retrieved: {len(rules)} | Corrective disagreement: {'⚠️ yes' if disagreed else 'no'}")
-
-                # Step 3: Streaming evaluation
-                st.write("Evaluating with Sonnet 4.6 (streaming)...")
-                evaluator = Evaluator()
-                t0 = time.perf_counter()
-
-                # Stream tokens silently, show a live character count so user knows it's working
-                progress_text = st.empty()
-                collected = []
-                char_count = 0
-                for chunk in evaluator.evaluate_stream(transcript, rules):
-                    collected.append(chunk)
-                    char_count += len(chunk)
-                    progress_text.caption(f"⏳ Receiving response... {char_count} characters")
-
-                progress_text.empty()
-                raw_content = "".join(collected)
-                latency = round(time.perf_counter() - t0, 2)
-
-                # Parse verdicts from collected stream
-                try:
-                    verdicts = evaluator._parse_content(raw_content)
-                except Exception:
-                    verdicts = []
-
-                st.write(f"Done in {latency}s")
-                status.update(label="Evaluation complete", state="complete")
+                st.write(f"Rules retrieved: {len(rules)} | Disagreement: {'⚠️ yes' if disagreed else 'no'}")
+                status.update(label="Rules retrieved — evaluating...", state="running")
 
             except Exception as e:
-                status.update(label="Evaluation failed", state="error")
-                st.error(f"Evaluation failed: {e}")
+                status.update(label="Failed", state="error")
+                st.error(f"Error: {e}")
                 st.stop()
 
+        # Step 3: streaming evaluation OUTSIDE status so cards stay visible
+        st.subheader("Regulatory Card")
+
+        if disagreed:
+            st.warning("Corrective RAG: deterministic and semantic paths disagreed — union of both used.")
+
+        evaluator = Evaluator()
+        t0 = time.perf_counter()
+        verdicts = []
+
+        with st.spinner("Evaluating with Sonnet 4.6..."):
+            # Collect all verdicts first so we can render metrics + cards together
+            all_verdicts = list(evaluator.evaluate_stream_verdicts(transcript, rules))
+
+        latency = round(time.perf_counter() - t0, 2)
+
+        # Summary metrics
         card = RegulatoryCard(
             transcript_id=transcript_id,
-            verdicts=verdicts,
+            verdicts=all_verdicts,
             evaluated_at=datetime.now(timezone.utc).isoformat(),
             model_used=config["models"]["evaluator_model"],
             latency_seconds=latency,
             corrective_disagreement=disagreed,
         )
 
-        st.subheader("Regulatory Card")
         m1, m2, m3, m4 = st.columns(4)
-        m1.metric("Rules Evaluated", len(verdicts))
+        m1.metric("Rules Evaluated", len(all_verdicts))
         m2.metric("PASS", card.pass_count)
         m3.metric("FAIL", card.fail_count)
         m4.metric("Latency", f"{latency}s")
 
-        if disagreed:
-            st.warning("Corrective RAG: deterministic and semantic paths disagreed — union of both used.")
+        st.markdown("---")
 
-        for v in verdicts:
-            sc = SEVERITY_COLOUR.get(v.severity, "")
+        # Verdict cards — persistent, always visible
+        for v in all_verdicts:
+            sc = SEVERITY_COLOUR.get(v.severity.lower(), "")
             vc = VERDICT_COLOUR.get(v.verdict, "")
-            with st.expander(f"{vc} {v.rule_id} — **{v.verdict}** {sc} {v.severity.upper()}"):
+            with st.expander(
+                f"{vc} {v.rule_id} — **{v.verdict}** {sc} {v.severity.upper()}",
+                expanded=True,
+            ):
                 st.markdown(f"**Reasoning:** {v.reasoning}")
                 st.markdown(f"**Citation:** {v.citation}")
 
+        # Audit log
         log = AuditLog(config["audit"]["db_path"])
         log.append(AuditEntry(
             transcript_id=transcript_id,
             rules_evaluated=[r.id for r in rules],
-            verdicts=verdicts,
+            verdicts=all_verdicts,
             model_used=card.model_used,
             latency_seconds=card.latency_seconds,
             timestamp=card.evaluated_at,
