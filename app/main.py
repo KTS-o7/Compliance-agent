@@ -22,15 +22,14 @@ def load_config() -> dict:
     return cfg
 
 
-@st.cache_resource
 def load_rule_store(qdrant_url: str):
-    from app.ingestion.rule_store import RuleStore
-    from app.ingestion.seed_rules import seed
-    store = RuleStore(qdrant_url=qdrant_url)
-    inserted = seed(store)
-    if inserted > 0:
-        st.toast(f"Seeded {inserted} compliance rules.")
-    return store
+    if "rule_store" not in st.session_state:
+        from app.ingestion.rule_store import RuleStore
+        from app.ingestion.seed_rules import seed
+        store = RuleStore(qdrant_url=qdrant_url)
+        seed(store)
+        st.session_state["rule_store"] = store
+    return st.session_state["rule_store"]
 
 
 def login_page() -> None:
