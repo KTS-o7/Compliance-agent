@@ -1,0 +1,7 @@
+Agent: Calling about your overdue balance of $3,500. We need payment today.
+Customer: I'm going through a really difficult time financially. I lost my job last month.
+Agent: I understand but the debt still needs to be paid. Can you borrow from family?
+Customer: Are there any hardship programs available? I really can't pay right now.
+Agent: We don't offer any special programs. You need to pay the full balance.
+Customer: There's really nothing you can do to help me?
+Agent: You need to make a payment arrangement or this will be escalated.

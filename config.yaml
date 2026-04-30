@@ -1,0 +1,19 @@
+models:
+  trigger_model: "qwen3.5:9b"
+  evaluator_model: "qwen3.5:9b"
+
+bifrost:
+  base_url: "http://localhost:8080/v1"
+  api_key: "dummy"
+
+qdrant:
+  url: "http://localhost:6333"
+  collection: "compliance_rules"
+  vector_size: 768
+
+retrieval:
+  semantic_top_k: 5
+  disagreement_threshold: 0.5
+
+audit:
+  db_path: "data/audit.db"

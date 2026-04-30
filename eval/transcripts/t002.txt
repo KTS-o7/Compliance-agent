@@ -1,0 +1,7 @@
+Agent: Hello, I'm calling from ABC Collections regarding an account balance of $1,200.
+Customer: I'd like to dispute this debt. I don't recognize this account.
+Agent: Absolutely. I'm noting your dispute right now. Per the FDCPA, we are required to send you written validation of this debt within five business days.
+Customer: And you'll stop calling me until you send the validation?
+Agent: Yes, we will cease collection activity until you receive the written validation notice. You should receive it within 5 business days at your address on file.
+Customer: Thank you. What if I still dispute it after I receive it?
+Agent: You can send us a written dispute within 30 days of receiving the notice, and we will investigate further. Is there anything else I can help you with?

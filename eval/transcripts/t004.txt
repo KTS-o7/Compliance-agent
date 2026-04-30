@@ -1,0 +1,9 @@
+Agent: Hello, calling about your balance of $1,800. How can we help you today?
+Customer: I want to set up a payment plan. I can't pay it all at once.
+Agent: Of course, we can work with you on that. We have several payment plan options available. Would $200 a month work for you?
+Customer: That's a bit high. Could we do $100?
+Agent: Let me check what we can offer. Yes, we can set up $100 per month with no additional fees or interest beyond what's already accrued.
+Customer: And are there any hardship programs if I lose my job again?
+Agent: Yes, we do have a hardship program. If your situation changes, please call us and we can review your account for reduced payment options or a temporary deferral.
+Customer: That's reassuring. Let's go with the $100 per month plan.
+Agent: Perfect. I'm setting that up now. Your first payment will be due on the 1st of next month.

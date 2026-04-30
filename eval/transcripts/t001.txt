@@ -1,0 +1,7 @@
+Agent: Hello, this is Collections calling about your overdue account of $2,340.
+Customer: I dispute this debt. I don't believe I owe this amount.
+Agent: Well our records show you do owe it. Can you make a payment today?
+Customer: I'm telling you I dispute this. I want proof of this debt.
+Agent: We need payment by end of the week or this goes to our legal team.
+Customer: I have the right to request validation of this debt.
+Agent: The debt is valid. Please arrange payment immediately.

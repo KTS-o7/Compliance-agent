@@ -1,0 +1,8 @@
+[server]
+fileWatcherType = "watchdog"
+
+[logger]
+level = "error"
+
+[browser]
+gatherUsageStats = false
