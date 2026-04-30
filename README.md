@@ -44,7 +44,7 @@ To stop: `Ctrl+C` in the `run.sh` terminal (runs `docker compose down` automatic
 
 ```mermaid
 graph TD
-    User["👤 User (Browser)"] --> Streamlit["Streamlit App :8502"]
+    User["👤 User (Browser)"] --> Streamlit["Streamlit App :8502\n(Docker container)"]
 
     Streamlit --> Login["Auth\njunior / senior"]
     Login -->|senior| AdminPage["Admin Page\nRule Ingestion"]
@@ -52,33 +52,35 @@ graph TD
     Login -->|senior| AuditPage["Audit Log Page"]
 
     AdminPage --> RuleStore["Rule Store\nrule_store.py"]
-    RuleStore --> BGE["BAAI/bge-base-en-v1.5\nEmbedder (768-dim)"]
+    RuleStore --> BGE["BAAI/bge-base-en-v1.5\nEmbedder — baked into image"]
     BGE --> Qdrant["Qdrant :6333\n(Docker container)"]
 
-    ReviewerPage --> TriggerDetector["Trigger Detector\nQwen3-4B (MLX)"]
-    TriggerDetector --> Bifrost["bifrost :8080\n(Docker container)"]
-    Bifrost --> MLXTrigger["mlx_lm.server :8081\nQwen3-4B-4bit"]
+    ReviewerPage --> TriggerDetector["Trigger Detector\nsmall model — qwen3.5:9b"]
+    TriggerDetector --> Ollama["Ollama :11434\n(host process, MLX-powered)"]
+    Ollama --> Model["qwen3.5:9b\n~5GB, Apple Silicon MLX"]
 
-    ReviewerPage --> CorrectiveRAG["Corrective RAG"]
-    CorrectiveRAG --> DeterministicRetriever["Deterministic\nTRIGGER_RULE_MAP"]
-    CorrectiveRAG --> SemanticRetriever["Semantic Search\nQdrant"]
+    ReviewerPage --> CorrectiveRAG["Corrective RAG\n(parallel retrieval)"]
+    CorrectiveRAG --> DeterministicRetriever["Deterministic\nTRIGGER_RULE_MAP dict"]
+    CorrectiveRAG --> SemanticRetriever["Semantic Search\nBGE embed → Qdrant cosine"]
     SemanticRetriever --> Qdrant
 
-    CorrectiveRAG --> Evaluator["Evaluator\nQwen3.5-9B (MLX)"]
-    Evaluator --> Bifrost
-    Bifrost --> MLXEvaluator["mlx_lm.server :8082\nQwen3.5-9B-MLX-4bit"]
+    CorrectiveRAG --> Evaluator["Evaluator\nlarge model — qwen3.5:9b"]
+    Evaluator --> Ollama
 
-    Evaluator --> RegulatoryCard["Regulatory Card\nPASS/FAIL + Citations"]
-    RegulatoryCard --> AuditLog["Audit Log\nSQLite data/audit.db"]
+    Evaluator --> RegulatoryCard["Regulatory Card\nPASS/FAIL + Reasoning + Citations"]
+    RegulatoryCard --> AuditLog["Audit Log\nSQLite — data/audit.db"]
     AuditPage --> AuditLog
+
+    Bifrost["Bifrost :8080\n(Docker — cloud backend only)"]
 ```
 
 ### Trigger Detection State Diagram
 
 ```mermaid
 stateDiagram-v2
-    [*] --> SendToHaiku: transcript received
-    SendToHaiku --> ParseJSON: LLM response received
+    [*] --> SendToOllama: transcript received
+    SendToOllama --> StripThinkBlock: LLM response received
+    StripThinkBlock --> ParseJSON: think tags removed
     ParseJSON --> FilterValidLabels: JSON parsed OK
     ParseJSON --> ReturnEmpty: JSONDecodeError
     FilterValidLabels --> ReturnLabels: labels validated against TRIGGER_LABELS
@@ -109,12 +111,14 @@ stateDiagram-v2
     [*] --> CheckRules: rules + transcript received
     CheckRules --> ReturnEmpty: no rules
     CheckRules --> BuildPrompt: rules exist
-    BuildPrompt --> SendToSonnet: rules serialised to JSON
-    SendToSonnet --> ParseVerdicts: response received
-    ParseVerdicts --> StripFences: markdown fences detected
-    StripFences --> ParseVerdicts: fences removed
-    ParseVerdicts --> ReturnVerdicts: parsed successfully
-    ParseVerdicts --> ReturnEmpty: JSONDecodeError
+    BuildPrompt --> SendToOllama: rules serialised to JSON
+    SendToOllama --> StripThinkBlock: response received
+    StripThinkBlock --> StripFences: think tags removed
+    StripFences --> ParseVerdicts: markdown fences removed
+    ParseVerdicts --> SkipBadVerdict: individual verdict malformed
+    SkipBadVerdict --> ParseVerdicts: continue remaining verdicts
+    ParseVerdicts --> ReturnVerdicts: all verdicts parsed
+    ParseVerdicts --> ReturnEmpty: JSONDecodeError on full response
     ReturnVerdicts --> [*]
     ReturnEmpty --> [*]
 ```
@@ -125,16 +129,16 @@ stateDiagram-v2
 
 | Role | Model | Why |
 |------|-------|-----|
-| Trigger detection | `Qwen3-4B-4bit` (MLX local) | Fast 4B model, JSON instruction following, no API cost |
-| Evaluation | `Qwen3.5-9B-MLX-4bit` (MLX local) | Strong reasoning, fully local, Apple Silicon optimised |
-| Embeddings | `BAAI/bge-base-en-v1.5` (local) | 84.7% recall, 768-dim, ~420MB, English-optimised |
+| Trigger detection | `qwen3.5:9b` via Ollama | Thinking model with `reasoning_effort:none` for fast JSON label output |
+| Evaluation | `qwen3.5:9b` via Ollama | Same model — strong reasoning, citation-quality output, 18GB fits in unified memory |
+| Embeddings | `BAAI/bge-base-en-v1.5` (local) | 768-dim, English-optimised, baked into Docker image — no download at runtime |
 
-**LLM access:** Both models run locally via `mlx_lm.server` on Apple Silicon. Requests are proxied through a [bifrost](https://github.com/maximhq/bifrost) Docker container (port 8080) which routes `mlx-trigger/*` → port 8081 and `mlx-evaluator/*` → port 8082.
+**LLM access (default — Ollama):** Both trigger and evaluator call Ollama directly at `localhost:11434/v1` via the OpenAI-compatible API. Ollama 0.19+ uses MLX natively on Apple Silicon. No bifrost proxy needed. Thinking is disabled via `reasoning_effort: none` in `extra_body`.
 
-To switch between local MLX and cloud providers, update `config.yaml` and set `USE_STRUCTURED_OUTPUT` in `.env`:
+**LLM access (cloud backend):** Requests route through a [bifrost](https://github.com/maximhq/bifrost) Docker container (port 8080) → AWS Bedrock. Trigger uses Haiku 4.5, evaluator uses Sonnet 4.6. Switch by setting `LLM_BACKEND=cloud` in `.env` and updating `config.yaml`:
 
 ```yaml
-# Phase 1 — Cloud (bifrost → AWS Bedrock)
+# Cloud (bifrost → AWS Bedrock)
 models:
   trigger_model: "bedrock/global.anthropic.claude-haiku-4-5-20251001-v1:0"
   evaluator_model: "bedrock/global.anthropic.claude-sonnet-4-6"
@@ -142,16 +146,7 @@ bifrost:
   base_url: "http://localhost:24242/v1"
 ```
 
-```yaml
-# Phase 2 — Local MLX (bifrost → mlx_lm.server)
-models:
-  trigger_model: "mlx-trigger/mlx-community/Qwen3-4B-4bit"
-  evaluator_model: "mlx-evaluator/mlx-community/Qwen3.5-9B-MLX-4bit"
-bifrost:
-  base_url: "http://localhost:8080/v1"
-```
-
-Zero app code changes required — only `config.yaml` and `USE_STRUCTURED_OUTPUT` env var.
+Zero app code changes required — only `.env` and `config.yaml`.
 
 ---
 
