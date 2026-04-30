@@ -1,0 +1,19 @@
+models:
+  trigger_model: "bedrock/global.anthropic.claude-haiku-4-5-20251001-v1:0"
+  evaluator_model: "bedrock/global.anthropic.claude-sonnet-4-6"
+
+bifrost:
+  base_url: "http://localhost:24242/v1"
+  api_key: "bifrost"
+
+qdrant:
+  url: "http://localhost:6333"
+  collection: "compliance_rules"
+  vector_size: 768
+
+retrieval:
+  semantic_top_k: 5
+  disagreement_threshold: 0.5
+
+audit:
+  db_path: "data/audit.db"
