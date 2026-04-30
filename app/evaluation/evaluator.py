@@ -58,13 +58,9 @@ class Evaluator:
 
     def evaluate_stream_verdicts(self, transcript: str, rules: list[Rule]) -> Generator[Verdict, None, None]:
         """
-        Streaming via client.beta.chat.completions.stream + Pydantic structured output.
-        - content.delta: partial dict snapshot — used to show progress only
-        - content.done: fully parsed EvaluationResponse — yield verdicts one by one
-        
-        Note: bifrost returns event.parsed as a partial dict (not a Pydantic model)
-        on content.delta events. We diff the snapshot to yield verdicts progressively
-        as each one completes, then flush remaining on content.done.
+        True streaming via client.beta.chat.completions.stream + Pydantic structured output.
+        - content.delta: partial dict, yield completed verdicts as they accumulate
+        - content.done: fully parsed EvaluationResponse, flush any remaining verdicts
         """
         if not rules:
             return
@@ -79,28 +75,29 @@ class Evaluator:
             ) as stream:
                 for event in stream:
                     if event.type == "content.delta" and event.parsed:
-                        # event.parsed is a partial dict from bifrost
+                        # bifrost returns partial dict on content.delta
                         partial = event.parsed if isinstance(event.parsed, dict) else {}
                         partial_verdicts = partial.get("verdicts", [])
-                        # yield all complete verdicts except the last (may still be building)
+                        # yield all complete verdicts except the last (still streaming)
                         while seen < len(partial_verdicts) - 1:
                             try:
                                 yield Verdict(**partial_verdicts[seen])
-                                seen += 1
                             except Exception:
-                                seen += 1
+                                pass
+                            seen += 1
 
-                    elif event.type == "content.done":
-                        # Final fully-validated object — yield remaining verdicts
-                        final_parsed = event.parsed
-                        if final_parsed:
-                            verdicts_list = (
-                                final_parsed.verdicts
-                                if isinstance(final_parsed, EvaluationResponse)
-                                else [Verdict(**v) for v in final_parsed.get("verdicts", [])]
-                            )
-                            while seen < len(verdicts_list):
-                                yield verdicts_list[seen]
-                                seen += 1
+                    elif event.type == "content.done" and event.parsed is not None:
+                        # Final fully-validated EvaluationResponse object
+                        parsed = event.parsed
+                        if isinstance(parsed, EvaluationResponse):
+                            verdicts_list = parsed.verdicts
+                        elif isinstance(parsed, dict):
+                            verdicts_list = [Verdict(**v) for v in parsed.get("verdicts", [])]
+                        else:
+                            verdicts_list = []
+                        # flush all remaining verdicts including the last one
+                        while seen < len(verdicts_list):
+                            yield verdicts_list[seen]
+                            seen += 1
         except Exception:
             return
