@@ -43,11 +43,13 @@ def show_reviewer(role: str, rule_store: RuleStore, config: dict) -> None:
     if evaluate and transcript.strip():
         with st.status("Running compliance evaluation...", expanded=True) as status:
             try:
+                # Step 1: Trigger detection
                 st.write("Detecting regulatory triggers...")
                 detector = TriggerDetector()
                 triggers = detector.detect(transcript)
-                st.write(f"Triggers: {triggers if triggers else 'none detected'}")
+                st.write(f"Triggers detected: {triggers if triggers else 'none'}")
 
+                # Step 2: Rule retrieval
                 st.write("Retrieving applicable rules...")
                 retriever = CorrectiveRetriever(
                     rule_store=rule_store,
@@ -66,11 +68,30 @@ def show_reviewer(role: str, rule_store: RuleStore, config: dict) -> None:
 
                 st.write(f"Rules retrieved: {len(rules)} | Corrective disagreement: {'⚠️ yes' if disagreed else 'no'}")
 
-                st.write("Evaluating compliance with Sonnet 4.6...")
+                # Step 3: Streaming evaluation
+                st.write("Evaluating with Sonnet 4.6 (streaming)...")
                 evaluator = Evaluator()
                 t0 = time.perf_counter()
-                verdicts = evaluator.evaluate(transcript, rules)
+
+                # Stream tokens live into a code block so the user sees output immediately
+                stream_placeholder = st.empty()
+                collected = []
+                for chunk in evaluator.evaluate_stream(transcript, rules):
+                    collected.append(chunk)
+                    # Show last 300 chars of streamed JSON so it doesn't overflow
+                    preview = "".join(collected)[-300:]
+                    stream_placeholder.code(preview, language="json")
+
+                stream_placeholder.empty()  # clear stream preview once done
+                raw_content = "".join(collected)
                 latency = round(time.perf_counter() - t0, 2)
+
+                # Parse verdicts from collected stream
+                try:
+                    verdicts = evaluator._parse_content(raw_content)
+                except Exception:
+                    verdicts = []
+
                 st.write(f"Done in {latency}s")
                 status.update(label="Evaluation complete", state="complete")
 
