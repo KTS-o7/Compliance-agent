@@ -22,6 +22,7 @@ services:
     environment:
       - QDRANT_URL=http://qdrant:6333
       - BIFROST_URL=http://host.docker.internal:24242/v1
+      - PYTHONPATH=/app
     volumes:
       - ./app:/app/app
       - ./eval:/app/eval
