@@ -41,7 +41,7 @@ def show_reviewer(role: str, rule_store: RuleStore, config: dict) -> None:
     evaluate = st.button("Evaluate Compliance", type="primary", disabled=not transcript.strip())
 
     if evaluate and transcript.strip():
-        # Step 1 & 2: detection + retrieval inside a collapsible status
+        # Step 1 & 2: detection + retrieval in a collapsible status
         with st.status("Preparing evaluation...", expanded=True) as status:
             try:
                 st.write("Detecting regulatory triggers...")
@@ -59,21 +59,18 @@ def show_reviewer(role: str, rule_store: RuleStore, config: dict) -> None:
 
                 if not rules:
                     status.update(label="No rules found", state="error")
-                    st.warning(
-                        "No rules retrieved for this transcript. "
-                        "Check that trigger labels are defined and rules have been seeded/added."
-                    )
+                    st.warning("No rules retrieved for this transcript.")
                     st.stop()
 
                 st.write(f"Rules retrieved: {len(rules)} | Disagreement: {'⚠️ yes' if disagreed else 'no'}")
-                status.update(label="Rules retrieved — evaluating...", state="running")
+                status.update(label="Rules retrieved — evaluating...", state="complete")
 
             except Exception as e:
                 status.update(label="Failed", state="error")
                 st.error(f"Error: {e}")
                 st.stop()
 
-        # Step 3: streaming evaluation OUTSIDE status so cards stay visible
+        # Step 3: stream verdict cards one by one as they arrive — outside status
         st.subheader("Regulatory Card")
 
         if disagreed:
@@ -81,13 +78,23 @@ def show_reviewer(role: str, rule_store: RuleStore, config: dict) -> None:
 
         evaluator = Evaluator()
         t0 = time.perf_counter()
+        all_verdicts = []
 
-        with st.spinner("Evaluating with Sonnet 4.6..."):
-            all_verdicts = list(evaluator.evaluate_stream_verdicts(transcript, rules))
+        # Each card renders the moment its verdict object is complete
+        for verdict in evaluator.evaluate_stream_verdicts(transcript, rules):
+            all_verdicts.append(verdict)
+            sc = SEVERITY_COLOUR.get(verdict.severity.lower(), "")
+            vc = VERDICT_COLOUR.get(verdict.verdict, "")
+            with st.expander(
+                f"{vc} {verdict.rule_id} — **{verdict.verdict}** {sc} {verdict.severity.upper()}",
+                expanded=True,
+            ):
+                st.markdown(f"**Reasoning:** {verdict.reasoning}")
+                st.markdown(f"**Citation:** {verdict.citation}")
 
         latency = round(time.perf_counter() - t0, 2)
 
-        # Summary metrics
+        # Summary metrics appear after all cards stream in
         card = RegulatoryCard(
             transcript_id=transcript_id,
             verdicts=all_verdicts,
@@ -97,27 +104,14 @@ def show_reviewer(role: str, rule_store: RuleStore, config: dict) -> None:
             corrective_disagreement=disagreed,
         )
 
+        st.markdown("---")
         m1, m2, m3, m4 = st.columns(4)
         m1.metric("Rules Evaluated", len(all_verdicts))
         m2.metric("PASS", card.pass_count)
         m3.metric("FAIL", card.fail_count)
         m4.metric("Latency", f"{latency}s")
 
-        if disagreed:
-            st.warning("Corrective RAG: deterministic and semantic paths disagreed — union of both used.")
-
-        st.markdown("---")
-
-        # Verdict cards rendered AFTER spinner is gone — fully persistent
-        for v in all_verdicts:
-            sc = SEVERITY_COLOUR.get(v.severity.lower(), "")
-            vc = VERDICT_COLOUR.get(v.verdict, "")
-            with st.expander(
-                f"{vc} {v.rule_id} — **{v.verdict}** {sc} {v.severity.upper()}",
-                expanded=True,
-            ):
-                st.markdown(f"**Reasoning:** {v.reasoning}")
-                st.markdown(f"**Citation:** {v.citation}")
+        # Persist to audit log
         log = AuditLog(config["audit"]["db_path"])
         log.append(AuditEntry(
             transcript_id=transcript_id,
