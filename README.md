@@ -209,7 +209,7 @@ Transcripts were generated with Claude Sonnet 4.6 via bifrost to accelerate draf
 
 ## Measured QoS Numbers
 
-> Run `python3.11 eval/run_eval.py` to generate these numbers (requires Qdrant + MLX servers running).
+> Run `python3.11 eval/run_eval.py` to generate these numbers (requires Qdrant + Ollama running).
 
 ### Phase 1 — Cloud (bifrost → AWS Bedrock)
 
@@ -219,7 +219,7 @@ Transcripts were generated with Claude Sonnet 4.6 via bifrost to accelerate draf
 | p95 latency | **11.17s** | ≤ 5s | ❌ Missed |
 | Mean latency | **16.28s** | — | — |
 
-### Phase 2 — Local MLX (Qwen3-4B trigger + Qwen3.5-9B evaluator on Apple Silicon)
+### Phase 2 — Local MLX via mlx_lm.server (Qwen3-4B trigger + Qwen3.5-9B evaluator)
 
 | Metric | Result | Target | Status |
 |--------|--------|--------|--------|
@@ -227,11 +227,20 @@ Transcripts were generated with Claude Sonnet 4.6 via bifrost to accelerate draf
 | p95 latency | **56.41s** | ≤ 5s | ❌ Missed |
 | Mean latency | **40.93s** | — | — |
 
-**Phase 2 analysis:**
+### Phase 3 — Ollama 0.19 (MLX-powered, Qwen3.5-9B for both trigger + evaluator)
 
-- **Accuracy (70%):** Qwen3.5-9B is more aggressive than Claude Sonnet 4.6 — it over-flags violations on borderline transcripts (t001, t003) and missed one cease & desist violation (t005). Ground truth was calibrated against Sonnet 4.6 outputs.
-- **Latency:** Local MLX inference on Apple Silicon is 30–76s per evaluation (cold KV cache on first request). This is a hardware constraint — no network latency but the 9B model generates ~20 tok/s on M-series. A smaller evaluator model (4B) would improve latency at the cost of accuracy.
-- **Trade-off:** Phase 2 is fully air-gapped — zero API costs, zero data leaving the device. For production compliance use cases, privacy may outweigh latency.
+| Metric | Result | Target | Status |
+|--------|--------|--------|--------|
+| Accuracy | **7/10 (70%)** | ≥ 8/10 (80%) | ❌ Missed |
+| p95 latency | **42.08s** | ≤ 5s | ❌ Missed |
+| Mean latency | **36.06s** | — | — |
+
+**Phase 3 analysis:**
+
+- **vs Phase 2:** Ollama 0.19 (MLX-powered) is 25% faster than direct mlx_lm.server (p95 42s vs 56s, mean 36s vs 41s). Same accuracy — both use Qwen3.5-9B.
+- **Accuracy (70%):** Same 3 misses as Phase 2 — t001/t003 over-flagged, t005 under-flagged. Ground truth calibrated against Sonnet 4.6; Qwen3.5 has different judgment thresholds on borderline cases.
+- **Simplicity:** Ollama manages model loading, MLX acceleration, and OpenAI-compatible API in one process. No separate mlx_lm.server needed.
+- **Trade-off:** Fully air-gapped, zero API cost, zero data leaving device. Latency is the cost of local inference on 18GB unified memory.
 
 ---
 

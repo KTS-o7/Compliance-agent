@@ -1,4 +1,5 @@
 {
+  "$schema": "https://www.getbifrost.ai/schema",
   "providers": {
     "mlx-trigger": {
       "keys": [
@@ -41,6 +42,58 @@
           "chat_completion_stream": true
         }
       }
+    },
+    "ollama-trigger": {
+      "keys": [
+        {
+          "name": "ollama-trigger-key",
+          "value": "dummy",
+          "models": ["gemma4:e4b", "qwen3.5:9b"],
+          "weight": 1.0
+        }
+      ],
+      "network_config": {
+        "base_url": "http://host.docker.internal:11434",
+        "default_request_timeout_in_seconds": 300
+      },
+      "custom_provider_config": {
+        "base_provider_type": "openai",
+        "allowed_requests": {
+          "chat_completion": true,
+          "chat_completion_stream": true
+        }
+      }
+    },
+    "ollama-evaluator": {
+      "keys": [
+        {
+          "name": "ollama-evaluator-key",
+          "value": "dummy",
+          "models": ["qwen3.5:9b", "qwen3.5:9b/no_think"],
+          "weight": 1.0
+        }
+      ],
+      "network_config": {
+        "base_url": "http://host.docker.internal:11434",
+        "default_request_timeout_in_seconds": 600
+      },
+      "custom_provider_config": {
+        "base_provider_type": "openai",
+        "allowed_requests": {
+          "chat_completion": true,
+          "chat_completion_stream": true
+        }
+      }
+    },
+    "bedrock": {
+      "keys": [
+        {
+          "name": "bedrock-key",
+          "value": "env.AWS_ACCESS_KEY_ID",
+          "models": ["*"],
+          "weight": 1.0
+        }
+      ]
     }
   }
 }

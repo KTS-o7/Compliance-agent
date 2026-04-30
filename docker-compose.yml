@@ -37,8 +37,6 @@ services:
     depends_on:
       qdrant:
         condition: service_healthy
-      bifrost:
-        condition: service_healthy
     environment:
       - QDRANT_URL=http://qdrant:6333
       - BIFROST_URL=http://bifrost:8080/v1
@@ -49,6 +47,9 @@ services:
       - TRANSFORMERS_VERBOSITY=error
       - HF_TOKEN=${HF_TOKEN}
       - USE_STRUCTURED_OUTPUT=${USE_STRUCTURED_OUTPUT:-true}
+      - LLM_BACKEND=${LLM_BACKEND:-cloud}
+      - OLLAMA_TRIGGER_MODEL=${OLLAMA_TRIGGER_MODEL:-ollama-evaluator/qwen3.5:9b}
+      - OLLAMA_EVALUATOR_MODEL=${OLLAMA_EVALUATOR_MODEL:-ollama-evaluator/qwen3.5:9b}
     volumes:
       - ./app:/app/app
       - ./eval:/app/eval

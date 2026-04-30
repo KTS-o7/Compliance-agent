@@ -4,9 +4,9 @@ import re
 from typing import Generator
 from pydantic import BaseModel
 from app.models.schemas import Rule, Verdict
-from app.llm_client import get_client, get_models, use_structured_output
+from app.llm_client import get_client, get_models, use_structured_output, get_no_think_kwargs
 
-SYSTEM_PROMPT = """\
+SYSTEM_PROMPT_CLOUD = """\
 You are a strict compliance auditor evaluating a debt collection agent's conversation.
 
 For each rule provided, determine if the agent PASSED or FAILED compliance.
@@ -33,7 +33,7 @@ Rules to evaluate:
 {rules_json}
 """
 
-# Wrapper model for beta structured output
+# Wrapper model for cloud beta structured output
 class EvaluationResponse(BaseModel):
     verdicts: list[Verdict]
 
@@ -57,8 +57,9 @@ class Evaluator:
         self.client = get_client()
         self.model = get_models()["evaluator"]
         self.structured = use_structured_output()
+        self._no_think = get_no_think_kwargs()
 
-    def _build_messages(self, transcript: str, rules: list[Rule]) -> list[dict]:
+    def _messages(self, transcript: str, rules: list[Rule]) -> list[dict]:
         rules_json = json.dumps(
             [{"id": r.id, "citation": r.citation, "severity": r.severity,
               "agent_must": r.agent_must, "agent_must_not": r.agent_must_not,
@@ -66,10 +67,10 @@ class Evaluator:
              for r in rules],
             indent=2
         )
-        prompt = SYSTEM_PROMPT if self.structured else SYSTEM_PROMPT_JSON
+        prompt = SYSTEM_PROMPT_CLOUD if self.structured else SYSTEM_PROMPT_JSON
         return [
             {"role": "system", "content": prompt.format(rules_json=rules_json)},
-            {"role": "user", "content": f"Transcript:\n{transcript}"},
+            {"role": "user",   "content": f"Transcript:\n{transcript}"},
         ]
 
     def evaluate(self, transcript: str, rules: list[Rule]) -> list[Verdict]:
@@ -78,10 +79,10 @@ class Evaluator:
             return []
         try:
             if self.structured:
-                # Cloud providers: use beta.parse with JSON schema enforcement
+                # cloud — beta.parse with JSON schema
                 completion = self.client.beta.chat.completions.parse(
                     model=self.model,
-                    messages=self._build_messages(transcript, rules),
+                    messages=self._messages(transcript, rules),
                     response_format=EvaluationResponse,
                     max_tokens=2048,
                     temperature=0.0,
@@ -89,15 +90,15 @@ class Evaluator:
                 result = completion.choices[0].message.parsed
                 return result.verdicts if result else []
             else:
-                # MLX local: plain create + manual JSON parse
+                # ollama — plain create + manual JSON parse
                 completion = self.client.chat.completions.create(
                     model=self.model,
-                    messages=self._build_messages(transcript, rules),
+                    messages=self._messages(transcript, rules),
                     max_tokens=2048,
                     temperature=0.0,
+                    **self._no_think,
                 )
-                content = completion.choices[0].message.content or ""
-                return _parse_verdicts(content)
+                return _parse_verdicts(completion.choices[0].message.content or "")
         except Exception:
             return []
 
@@ -107,11 +108,11 @@ class Evaluator:
             return
         try:
             if self.structured:
-                # Cloud providers: beta.stream with structured output
+                # cloud — beta.stream with structured output
                 seen = 0
                 with self.client.beta.chat.completions.stream(
                     model=self.model,
-                    messages=self._build_messages(transcript, rules),
+                    messages=self._messages(transcript, rules),
                     response_format=EvaluationResponse,
                     max_tokens=2048,
                     temperature=0.0,
@@ -138,18 +139,18 @@ class Evaluator:
                                 yield verdicts_list[seen]
                                 seen += 1
             else:
-                # MLX local: accumulate full stream then parse
+                # ollama — stream and accumulate full response then parse
                 full_content = ""
                 stream = self.client.chat.completions.create(
                     model=self.model,
-                    messages=self._build_messages(transcript, rules),
+                    messages=self._messages(transcript, rules),
                     max_tokens=2048,
                     temperature=0.0,
                     stream=True,
+                    **self._no_think,
                 )
                 for chunk in stream:
-                    delta = chunk.choices[0].delta.content or ""
-                    full_content += delta
+                    full_content += chunk.choices[0].delta.content or ""
                 for verdict in _parse_verdicts(full_content):
                     yield verdict
         except Exception:
