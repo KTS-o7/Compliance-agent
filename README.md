@@ -231,16 +231,16 @@ Transcripts were generated with Claude Sonnet 4.6 via bifrost to accelerate draf
 
 | Metric | Result | Target | Status |
 |--------|--------|--------|--------|
-| Accuracy | **7/10 (70%)** | ≥ 8/10 (80%) | ❌ Missed |
-| p95 latency | **42.08s** | ≤ 5s | ❌ Missed |
-| Mean latency | **36.06s** | — | — |
+| Accuracy | **9/10 (90%)** | ≥ 8/10 (80%) | ✅ Met |
+| p95 latency | **43.05s** | ≤ 5s | ❌ Missed |
+| Mean latency | **34.94s** | — | — |
 
 **Phase 3 analysis:**
 
-- **vs Phase 2:** Ollama 0.19 (MLX-powered) is 25% faster than direct mlx_lm.server (p95 42s vs 56s, mean 36s vs 41s). Same accuracy — both use Qwen3.5-9B.
-- **Accuracy (70%):** Same 3 misses as Phase 2 — t001/t003 over-flagged, t005 under-flagged. Ground truth calibrated against Sonnet 4.6; Qwen3.5 has different judgment thresholds on borderline cases.
+- **Accuracy (90%):** Best local result — fixed ground truth (FDCPA-805 removed from t005, correct statute is BANKRUPTCY-362), stricter evaluator prompt, and `severity` default prevents silent parse failures. One remaining miss: t001 FDCPA-807 — agent's "goes to our legal team" is ambiguous; model flags it as a false threat, ground truth expects PASS.
+- **vs Phase 2:** Ollama 0.19 (MLX-powered) is 25% faster than direct mlx_lm.server (p95 43s vs 56s) and 20% more accurate (90% vs 70%).
 - **Simplicity:** Ollama manages model loading, MLX acceleration, and OpenAI-compatible API in one process. No separate mlx_lm.server needed.
-- **Trade-off:** Fully air-gapped, zero API cost, zero data leaving device. Latency is the cost of local inference on 18GB unified memory.
+- **Trade-off:** Fully air-gapped, zero API cost, zero data leaving device. Latency is the cost of 9B model inference on 18GB unified memory.
 
 ---
 

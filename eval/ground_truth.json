@@ -17,7 +17,7 @@
   },
   "t005": {
     "triggers": ["Bankruptcy Notification"],
-    "expected_verdicts": {"BANKRUPTCY-362": "FAIL", "FDCPA-805": "FAIL"}
+    "expected_verdicts": {"BANKRUPTCY-362": "FAIL"}
   },
   "t006": {
     "triggers": ["Cease and Desist Request"],

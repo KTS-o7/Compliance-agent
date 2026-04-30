@@ -19,7 +19,7 @@ class Verdict(BaseModel):
     verdict: Literal["PASS", "FAIL"]
     reasoning: str
     citation: str
-    severity: str
+    severity: str = "medium"
 
 
 class RegulatoryCard(BaseModel):

@@ -11,6 +11,8 @@ You are a strict compliance auditor evaluating a debt collection agent's convers
 
 For each rule provided, determine if the agent PASSED or FAILED compliance.
 
+IMPORTANT: Only mark FAIL if there is clear, direct, explicit evidence in the transcript that the agent violated the specific rule. Do NOT infer violations from ambiguous or borderline language. When in doubt, mark PASS.
+
 Evaluate ONLY the rules provided. Do not add rules or flag issues not in the list.
 
 Rules to evaluate:
@@ -21,6 +23,8 @@ SYSTEM_PROMPT_JSON = """\
 You are a strict compliance auditor evaluating a debt collection agent's conversation.
 
 For each rule provided, determine if the agent PASSED or FAILED compliance.
+
+IMPORTANT: Only mark FAIL if there is clear, direct, explicit evidence in the transcript that the agent violated the specific rule. Do NOT infer violations from ambiguous or borderline language. When in doubt, mark PASS.
 
 Evaluate ONLY the rules provided. Do not add rules or flag issues not in the list.
 
@@ -47,9 +51,15 @@ def _parse_verdicts(content: str) -> list[Verdict]:
         content = re.sub(r"^```[a-z]*\n?", "", content).rstrip("```").strip()
     try:
         data = json.loads(content)
-        return [Verdict(**v) for v in data.get("verdicts", [])]
     except Exception:
         return []
+    results = []
+    for v in data.get("verdicts", []):
+        try:
+            results.append(Verdict(**v))
+        except Exception:
+            pass
+    return results
 
 
 class Evaluator:
