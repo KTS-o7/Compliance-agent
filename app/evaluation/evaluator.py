@@ -58,11 +58,13 @@ class Evaluator:
 
     def evaluate_stream_verdicts(self, transcript: str, rules: list[Rule]) -> Generator[Verdict, None, None]:
         """
-        Production streaming using client.beta.chat.completions.stream +
-        Pydantic structured output. The SDK fires content.delta events with
-        event.snapshot — a fully-parsed EvaluationResponse that grows as tokens
-        arrive. We diff consecutive snapshots to yield each new Verdict the
-        moment it completes.
+        Streaming via client.beta.chat.completions.stream + Pydantic structured output.
+        - content.delta: partial dict snapshot — used to show progress only
+        - content.done: fully parsed EvaluationResponse — yield verdicts one by one
+        
+        Note: bifrost returns event.parsed as a partial dict (not a Pydantic model)
+        on content.delta events. We diff the snapshot to yield verdicts progressively
+        as each one completes, then flush remaining on content.done.
         """
         if not rules:
             return
@@ -76,20 +78,29 @@ class Evaluator:
                 temperature=0.0,
             ) as stream:
                 for event in stream:
-                    if event.type == "content.delta" and event.parsed is not None:
-                        current: EvaluationResponse = event.parsed
-                        current_verdicts = current.verdicts or []
-                        # yield each newly completed verdict
-                        while seen < len(current_verdicts) - 1:
-                            yield current_verdicts[seen]
-                            seen += 1
-                # yield the final verdict once stream completes
-                final = stream.get_final_completion()
-                if final:
-                    result = final.choices[0].message.parsed
-                    if result:
-                        while seen < len(result.verdicts):
-                            yield result.verdicts[seen]
-                            seen += 1
+                    if event.type == "content.delta" and event.parsed:
+                        # event.parsed is a partial dict from bifrost
+                        partial = event.parsed if isinstance(event.parsed, dict) else {}
+                        partial_verdicts = partial.get("verdicts", [])
+                        # yield all complete verdicts except the last (may still be building)
+                        while seen < len(partial_verdicts) - 1:
+                            try:
+                                yield Verdict(**partial_verdicts[seen])
+                                seen += 1
+                            except Exception:
+                                seen += 1
+
+                    elif event.type == "content.done":
+                        # Final fully-validated object — yield remaining verdicts
+                        final_parsed = event.parsed
+                        if final_parsed:
+                            verdicts_list = (
+                                final_parsed.verdicts
+                                if isinstance(final_parsed, EvaluationResponse)
+                                else [Verdict(**v) for v in final_parsed.get("verdicts", [])]
+                            )
+                            while seen < len(verdicts_list):
+                                yield verdicts_list[seen]
+                                seen += 1
         except Exception:
             return
