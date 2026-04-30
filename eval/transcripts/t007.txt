@@ -1,0 +1,7 @@
+Agent: Hello, is this the account holder for account ending in 4821?
+Customer: Someone opened an account in my name fraudulently. I need to report this.
+Agent: I can see the account here. The balance is $2,100 and it's 60 days past due.
+Customer: Did you just tell me the balance? You haven't verified who I am.
+Agent: You called in about this account, so I assumed you were the account holder.
+Customer: I'm telling you it's fraud. You're supposed to verify my identity before sharing any account information.
+Agent: Well the account is in your name. What would you like us to do about the fraud claim?

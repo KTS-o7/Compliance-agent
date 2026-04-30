@@ -1,0 +1,42 @@
+{
+  "t001": {
+    "triggers": ["Debt Dispute", "Right to Validation Request"],
+    "expected_verdicts": {"FDCPA-809": "FAIL", "FDCPA-807": "PASS"}
+  },
+  "t002": {
+    "triggers": ["Debt Dispute", "Right to Validation Request"],
+    "expected_verdicts": {"FDCPA-809": "PASS"}
+  },
+  "t003": {
+    "triggers": ["Financial Hardship"],
+    "expected_verdicts": {"CFPB-HARDSHIP-01": "FAIL", "FDCPA-806": "PASS"}
+  },
+  "t004": {
+    "triggers": ["Payment Plan Request", "Financial Hardship"],
+    "expected_verdicts": {"FDCPA-808": "PASS", "CFPB-HARDSHIP-01": "PASS"}
+  },
+  "t005": {
+    "triggers": ["Bankruptcy Notification"],
+    "expected_verdicts": {"BANKRUPTCY-362": "FAIL", "FDCPA-805": "FAIL"}
+  },
+  "t006": {
+    "triggers": ["Cease and Desist Request"],
+    "expected_verdicts": {"FDCPA-805": "PASS", "FDCPA-806": "PASS"}
+  },
+  "t007": {
+    "triggers": ["Fraud Claim", "Identity Verification Failure"],
+    "expected_verdicts": {"FCRA-605": "FAIL"}
+  },
+  "t008": {
+    "triggers": ["Complaint Escalation"],
+    "expected_verdicts": {"CFPB-COMPLAINT-01": "PASS"}
+  },
+  "t009": {
+    "triggers": ["Identity Verification Failure"],
+    "expected_verdicts": {"FCRA-605": "PASS"}
+  },
+  "t010": {
+    "triggers": ["Right to Validation Request", "Debt Dispute"],
+    "expected_verdicts": {"FDCPA-809": "FAIL"}
+  }
+}

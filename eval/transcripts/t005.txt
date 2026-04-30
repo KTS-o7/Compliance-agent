@@ -1,0 +1,7 @@
+Agent: Calling about your overdue account of $4,200. This is now 90 days past due.
+Customer: I need to let you know that I filed for bankruptcy last week. Case number 2024-BK-5521.
+Agent: I understand, but this debt was incurred before the filing so you still owe it.
+Customer: I was told all collection must stop once I file.
+Agent: We'll need to continue until we receive official court documentation.
+Customer: The automatic stay goes into effect immediately upon filing.
+Agent: Please send us the documentation and then we'll review. In the meantime, can you make a partial payment?

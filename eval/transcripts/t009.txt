@@ -1,0 +1,7 @@
+Agent: Hello, I'm calling about an account in your name.
+Customer: I'm not sure what account you're referring to.
+Agent: Before I can share any account details, I need to verify your identity. Can you please confirm your full name and the last four digits of your Social Security Number?
+Customer: I'm not comfortable giving that information over the phone.
+Agent: I completely understand. For your security, I'm not able to discuss any account details without verifying your identity. You can also verify your identity through our secure online portal, or by visiting one of our offices with a government-issued ID.
+Customer: OK, I'll use the online portal.
+Agent: Perfect. The address is on our website. Once you've verified your identity, we can discuss any account details or disputes you may have.

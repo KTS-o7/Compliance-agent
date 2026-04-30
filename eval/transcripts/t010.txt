@@ -1,0 +1,7 @@
+Agent: Calling about your overdue balance of $890. This needs to be paid immediately.
+Customer: I have the right to request validation of this debt in writing.
+Agent: The debt is clearly valid. You opened the account in 2022 with First Bank.
+Customer: I'm formally requesting written validation as is my right under the FDCPA.
+Agent: We'll send that eventually but you still need to make a payment now.
+Customer: You cannot continue collection activity after I've requested validation.
+Agent: The request is noted but payment is still due. Can we set up a payment arrangement?

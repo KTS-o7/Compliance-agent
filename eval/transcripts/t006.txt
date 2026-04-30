@@ -1,0 +1,7 @@
+Agent: Good afternoon, calling about your account balance.
+Customer: I am formally requesting that you cease all communication with me regarding this debt. I've sent a written cease and desist letter.
+Agent: I understand. I'm noting your cease and desist request in our system right now.
+Customer: So you'll stop all calls and letters?
+Agent: Yes, we are required by law to stop all collection communication upon your written request. The only contact you may receive from us would be a notice of specific legal action, if applicable.
+Customer: Good. Please confirm you've noted this.
+Agent: Confirmed. Your cease and desist has been logged as of today's date. You will not receive further collection contacts from us.
