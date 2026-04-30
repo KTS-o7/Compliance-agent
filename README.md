@@ -40,6 +40,8 @@ To stop: `Ctrl+C` in the `run.sh` terminal (runs `docker compose down` automatic
 
 ## Architecture
 
+> Diagrams below are the architecture sketch for this submission. Rendered natively on GitHub.
+
 ```mermaid
 graph TD
     User["👤 User (Browser)"] --> Streamlit["Streamlit App :8502"]
