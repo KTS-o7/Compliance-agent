@@ -1,7 +1,6 @@
-import json
 import pytest
 from unittest.mock import MagicMock
-from app.evaluation.evaluator import Evaluator
+from app.evaluation.evaluator import Evaluator, EvaluationResponse
 from app.models.schemas import Rule, Verdict
 
 RULE = Rule(
@@ -18,6 +17,12 @@ TRANSCRIPT = (
     "Turn 3 — Agent: We'll look into it."
 )
 
+SAMPLE_VERDICT = Verdict(
+    rule_id="FDCPA-809", verdict="FAIL",
+    reasoning="Agent did not send validation notice.",
+    citation="Turn 3", severity="critical"
+)
+
 
 @pytest.fixture
 def evaluator(mocker):
@@ -29,20 +34,20 @@ def evaluator(mocker):
     return e
 
 
-def _mock_response(content: str):
-    msg = MagicMock(); msg.content = content
-    choice = MagicMock(); choice.message = msg
-    resp = MagicMock(); resp.choices = [choice]
+def _mock_parsed_response(verdicts: list[Verdict]):
+    """Mock client.beta.chat.completions.parse response."""
+    parsed = EvaluationResponse(verdicts=verdicts)
+    msg = MagicMock()
+    msg.parsed = parsed
+    choice = MagicMock()
+    choice.message = msg
+    resp = MagicMock()
+    resp.choices = [choice]
     return resp
 
 
 def test_returns_verdicts(evaluator):
-    payload = json.dumps([{
-        "rule_id": "FDCPA-809", "verdict": "FAIL",
-        "reasoning": "Agent did not send validation notice.",
-        "citation": "Turn 3", "severity": "critical"
-    }])
-    evaluator.client.chat.completions.create.return_value = _mock_response(payload)
+    evaluator.client.beta.chat.completions.parse.return_value = _mock_parsed_response([SAMPLE_VERDICT])
     verdicts = evaluator.evaluate(TRANSCRIPT, [RULE])
     assert len(verdicts) == 1
     assert verdicts[0].verdict == "FAIL"
@@ -54,16 +59,16 @@ def test_empty_rules_returns_empty(evaluator):
     assert verdicts == []
 
 
-def test_bad_json_returns_empty(evaluator):
-    evaluator.client.chat.completions.create.return_value = _mock_response(
-        "I cannot evaluate this transcript."
-    )
+def test_bad_parse_returns_empty(evaluator):
+    evaluator.client.beta.chat.completions.parse.side_effect = Exception("parse error")
     verdicts = evaluator.evaluate(TRANSCRIPT, [RULE])
     assert verdicts == []
 
 
-def test_markdown_fenced_response(evaluator):
-    payload = '```json\n[{"rule_id":"FDCPA-809","verdict":"PASS","reasoning":"ok","citation":"Turn 1","severity":"critical"}]\n```'
-    evaluator.client.chat.completions.create.return_value = _mock_response(payload)
+def test_none_parsed_returns_empty(evaluator):
+    msg = MagicMock(); msg.parsed = None
+    choice = MagicMock(); choice.message = msg
+    resp = MagicMock(); resp.choices = [choice]
+    evaluator.client.beta.chat.completions.parse.return_value = resp
     verdicts = evaluator.evaluate(TRANSCRIPT, [RULE])
-    assert verdicts[0].verdict == "PASS"
+    assert verdicts == []
