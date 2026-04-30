@@ -19,6 +19,17 @@ SEVERITY_COLOUR = {
 VERDICT_COLOUR = {"PASS": "🟢", "FAIL": "🔴"}
 
 
+def _render_verdict(verdict) -> None:
+    sc = SEVERITY_COLOUR.get(verdict.severity.lower(), "")
+    vc = VERDICT_COLOUR.get(verdict.verdict, "")
+    with st.expander(
+        f"{vc} {verdict.rule_id} — **{verdict.verdict}** {sc} {verdict.severity.upper()}",
+        expanded=True,
+    ):
+        st.markdown(f"**Reasoning:** {verdict.reasoning}")
+        st.markdown(f"**Citation:** {verdict.citation}")
+
+
 def show_reviewer(role: str, rule_store: RuleStore, config: dict) -> None:
     st.title("Compliance Evaluator")
     st.caption(f"Logged in as **{role}** reviewer")
@@ -41,14 +52,21 @@ def show_reviewer(role: str, rule_store: RuleStore, config: dict) -> None:
     evaluate = st.button("Evaluate Compliance", type="primary", disabled=not transcript.strip())
 
     if evaluate and transcript.strip():
-        # Step 1 & 2: detection + retrieval in a collapsible status
-        with st.status("Preparing evaluation...", expanded=True) as status:
+        all_verdicts = []
+        rules = []
+        disagreed = False
+        latency = 0.0
+
+        # Everything runs inside the status — cards stream live here
+        with st.status("Running evaluation...", expanded=True) as status:
             try:
+                # Step 1: triggers
                 st.write("Detecting regulatory triggers...")
                 detector = TriggerDetector()
                 triggers = detector.detect(transcript)
-                st.write(f"Triggers detected: {triggers if triggers else 'none'}")
+                st.write(f"Triggers: {triggers if triggers else 'none'}")
 
+                # Step 2: rules
                 st.write("Retrieving applicable rules...")
                 retriever = CorrectiveRetriever(
                     rule_store=rule_store,
@@ -63,38 +81,28 @@ def show_reviewer(role: str, rule_store: RuleStore, config: dict) -> None:
                     st.stop()
 
                 st.write(f"Rules retrieved: {len(rules)} | Disagreement: {'⚠️ yes' if disagreed else 'no'}")
-                status.update(label="Rules retrieved — evaluating...", state="complete")
+
+                if disagreed:
+                    st.warning("Corrective RAG: deterministic and semantic paths disagreed — union used.")
+
+                # Step 3: stream verdicts — cards appear live inside status
+                st.markdown("**Evaluating compliance...**")
+                evaluator = Evaluator()
+                t0 = time.perf_counter()
+
+                for verdict in evaluator.evaluate_stream_verdicts(transcript, rules):
+                    all_verdicts.append(verdict)
+                    _render_verdict(verdict)
+
+                latency = round(time.perf_counter() - t0, 2)
+                status.update(label=f"Evaluation complete — {len(all_verdicts)} rules in {latency}s", state="complete")
 
             except Exception as e:
-                status.update(label="Failed", state="error")
+                status.update(label="Evaluation failed", state="error")
                 st.error(f"Error: {e}")
                 st.stop()
 
-        # Step 3: stream verdict cards one by one as they arrive — outside status
-        st.subheader("Regulatory Card")
-
-        if disagreed:
-            st.warning("Corrective RAG: deterministic and semantic paths disagreed — union of both used.")
-
-        evaluator = Evaluator()
-        t0 = time.perf_counter()
-        all_verdicts = []
-
-        # Each card renders the moment its verdict object is complete
-        for verdict in evaluator.evaluate_stream_verdicts(transcript, rules):
-            all_verdicts.append(verdict)
-            sc = SEVERITY_COLOUR.get(verdict.severity.lower(), "")
-            vc = VERDICT_COLOUR.get(verdict.verdict, "")
-            with st.expander(
-                f"{vc} {verdict.rule_id} — **{verdict.verdict}** {sc} {verdict.severity.upper()}",
-                expanded=True,
-            ):
-                st.markdown(f"**Reasoning:** {verdict.reasoning}")
-                st.markdown(f"**Citation:** {verdict.citation}")
-
-        latency = round(time.perf_counter() - t0, 2)
-
-        # Summary metrics appear after all cards stream in
+        # ── Persistent section below (visible after status collapses) ──
         card = RegulatoryCard(
             transcript_id=transcript_id,
             verdicts=all_verdicts,
@@ -104,14 +112,23 @@ def show_reviewer(role: str, rule_store: RuleStore, config: dict) -> None:
             corrective_disagreement=disagreed,
         )
 
-        st.markdown("---")
+        st.subheader("Regulatory Card")
+
+        if disagreed:
+            st.warning("Corrective RAG: deterministic and semantic paths disagreed — union of both used.")
+
         m1, m2, m3, m4 = st.columns(4)
         m1.metric("Rules Evaluated", len(all_verdicts))
         m2.metric("PASS", card.pass_count)
         m3.metric("FAIL", card.fail_count)
         m4.metric("Latency", f"{latency}s")
 
-        # Persist to audit log
+        st.markdown("---")
+
+        for v in all_verdicts:
+            _render_verdict(v)
+
+        # Audit log
         log = AuditLog(config["audit"]["db_path"])
         log.append(AuditEntry(
             transcript_id=transcript_id,
