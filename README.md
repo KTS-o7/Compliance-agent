@@ -172,7 +172,27 @@ class Rule(BaseModel):
 
 ---
 
-## How Corrective RAG Works
+## Auth & Roles
+
+Two hardcoded users with different scopes:
+
+| User | Password | Pages | Rule scope |
+|------|----------|-------|------------|
+| `senior` | `senior123` | Reviewer, Admin, Audit Log | All 10 rules |
+| `junior` | `junior123` | Reviewer only | 8 rules (`role_tag: "all"`) |
+
+**What junior cannot see:**
+
+| Rule | Statute | Why senior-only |
+|------|---------|-----------------|
+| `BANKRUPTCY-362` | 11 U.S.C. § 362 | Automatic stay violations carry legal liability — escalation required |
+| `FCRA-623` | 15 U.S.C. § 1681s-2 | Furnisher dispute handling requires senior sign-off |
+
+Role filtering is enforced at the Qdrant query level — both the semantic search and deterministic `get_by_ids` apply a `MatchAny` filter on `role_tag`. A junior reviewer submitting a bankruptcy transcript will not see a BANKRUPTCY-362 verdict at all; the rule is outside their evaluation scope.
+
+---
+
+
 
 For each transcript evaluation, rules are retrieved via **two parallel paths**:
 
