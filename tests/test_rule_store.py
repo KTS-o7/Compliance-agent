@@ -42,6 +42,20 @@ def test_get_by_ids_empty_returns_empty(store):
     assert result == []
 
 
+def test_semantic_search_calls_query_points(store, mocker):
+    mock_vector = MagicMock()
+    mock_vector.tolist.return_value = [0.1] * 768
+    mock_embedder = MagicMock()
+    mock_embedder.encode.return_value = mock_vector
+    mocker.patch("app.ingestion.rule_store._get_embedder", return_value=mock_embedder)
+    mock_result = MagicMock()
+    mock_result.points = []
+    store.client.query_points.return_value = mock_result
+    results = store.semantic_search("debt dispute", top_k=3, role="senior")
+    assert store.client.query_points.called
+    assert results == []
+
+
 def test_seed_rules_count():
     from app.ingestion.seed_rules import SEED_RULES
     assert len(SEED_RULES) == 10

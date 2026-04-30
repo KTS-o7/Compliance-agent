@@ -64,14 +64,14 @@ class RuleStore:
         role_tags = ["all"] if role == "junior" else ["junior", "senior", "all"]
         prefixed_query = f"Represent this sentence for searching relevant passages: {query}"
         vector = _get_embedder().encode(prefixed_query).tolist()
-        results = self.client.search(
+        results = self.client.query_points(
             collection_name=COLLECTION,
-            query_vector=vector,
+            query=vector,
             limit=top_k,
             query_filter=Filter(
                 must=[FieldCondition(key="role_tag", match=MatchAny(any=role_tags))]
             ),
-        )
+        ).points
         return [Rule(**r.payload) for r in results]
 
     def get_by_ids(self, rule_ids: list[str], role: str = "senior") -> list[Rule]:
