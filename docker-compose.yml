@@ -46,10 +46,11 @@ services:
       - TOKENIZERS_PARALLELISM=false
       - TRANSFORMERS_VERBOSITY=error
       - HF_TOKEN=${HF_TOKEN}
-      - USE_STRUCTURED_OUTPUT=${USE_STRUCTURED_OUTPUT:-true}
-      - LLM_BACKEND=${LLM_BACKEND:-cloud}
-      - OLLAMA_TRIGGER_MODEL=${OLLAMA_TRIGGER_MODEL:-ollama-evaluator/qwen3.5:9b}
-      - OLLAMA_EVALUATOR_MODEL=${OLLAMA_EVALUATOR_MODEL:-ollama-evaluator/qwen3.5:9b}
+      - USE_STRUCTURED_OUTPUT=${USE_STRUCTURED_OUTPUT:-false}
+      - LLM_BACKEND=${LLM_BACKEND:-ollama}
+      - OLLAMA_HOST=http://host.docker.internal:11434
+      - OLLAMA_TRIGGER_MODEL=${OLLAMA_TRIGGER_MODEL:-qwen3.5:9b}
+      - OLLAMA_EVALUATOR_MODEL=${OLLAMA_EVALUATOR_MODEL:-qwen3.5:9b}
     volumes:
       - ./app:/app/app
       - ./eval:/app/eval

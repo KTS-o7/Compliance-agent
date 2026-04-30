@@ -48,5 +48,7 @@ class TriggerDetector:
                     content = content[4:]
             labels = json.loads(content.strip())
             return [l for l in labels if l in TRIGGER_LABELS]
-        except Exception:
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).error("Trigger detection failed: %s", e, exc_info=True)
             return []

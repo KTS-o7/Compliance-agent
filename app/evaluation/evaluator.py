@@ -109,7 +109,9 @@ class Evaluator:
                     **self._no_think,
                 )
                 return _parse_verdicts(completion.choices[0].message.content or "")
-        except Exception:
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).error("Evaluation failed: %s", e, exc_info=True)
             return []
 
     def evaluate_stream_verdicts(self, transcript: str, rules: list[Rule]) -> Generator[Verdict, None, None]:
@@ -163,5 +165,7 @@ class Evaluator:
                     full_content += chunk.choices[0].delta.content or ""
                 for verdict in _parse_verdicts(full_content):
                     yield verdict
-        except Exception:
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).error("Streaming evaluation failed: %s", e, exc_info=True)
             return
