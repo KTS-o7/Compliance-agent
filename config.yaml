@@ -1,6 +1,6 @@
 models:
-  trigger_model: "mlx-trigger/mlx-community/Qwen3-4B-4bit"
-  evaluator_model: "mlx-evaluator/mlx-community/Qwen3.5-9B-MLX-4bit"
+  trigger_model: "qwen3.5:9b"
+  evaluator_model: "qwen3.5:9b"
 
 bifrost:
   base_url: "http://localhost:8080/v1"

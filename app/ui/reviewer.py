@@ -46,10 +46,10 @@ def show_reviewer(role: str, rule_store: RuleStore, config: dict) -> None:
         transcript_id = st.text_input("Transcript ID", value=default_tid)
         st.markdown("---")
         st.markdown("**Models**")
-        trigger_name = config["models"]["trigger_model"].split("/")[-1]
-        evaluator_name = config["models"]["evaluator_model"].split("/")[-1]
-        st.caption(f"Trigger: `{trigger_name}`")
-        st.caption(f"Evaluator: `{evaluator_name}`")
+        from app.llm_client import get_models
+        models = get_models()
+        st.caption(f"Trigger: `{models['trigger'].split('/')[-1]}`")
+        st.caption(f"Evaluator: `{models['evaluator'].split('/')[-1]}`")
 
     evaluate = st.button("Evaluate Compliance", type="primary", disabled=not transcript.strip())
 
