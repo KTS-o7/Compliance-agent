@@ -81,10 +81,8 @@ def show_reviewer(role: str, rule_store: RuleStore, config: dict) -> None:
 
         evaluator = Evaluator()
         t0 = time.perf_counter()
-        verdicts = []
 
         with st.spinner("Evaluating with Sonnet 4.6..."):
-            # Collect all verdicts first so we can render metrics + cards together
             all_verdicts = list(evaluator.evaluate_stream_verdicts(transcript, rules))
 
         latency = round(time.perf_counter() - t0, 2)
@@ -105,9 +103,12 @@ def show_reviewer(role: str, rule_store: RuleStore, config: dict) -> None:
         m3.metric("FAIL", card.fail_count)
         m4.metric("Latency", f"{latency}s")
 
+        if disagreed:
+            st.warning("Corrective RAG: deterministic and semantic paths disagreed — union of both used.")
+
         st.markdown("---")
 
-        # Verdict cards — persistent, always visible
+        # Verdict cards rendered AFTER spinner is gone — fully persistent
         for v in all_verdicts:
             sc = SEVERITY_COLOUR.get(v.severity.lower(), "")
             vc = VERDICT_COLOUR.get(v.verdict, "")
@@ -117,8 +118,6 @@ def show_reviewer(role: str, rule_store: RuleStore, config: dict) -> None:
             ):
                 st.markdown(f"**Reasoning:** {v.reasoning}")
                 st.markdown(f"**Citation:** {v.citation}")
-
-        # Audit log
         log = AuditLog(config["audit"]["db_path"])
         log.append(AuditEntry(
             transcript_id=transcript_id,
