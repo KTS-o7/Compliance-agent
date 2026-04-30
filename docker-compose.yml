@@ -23,10 +23,14 @@ services:
       - QDRANT_URL=http://qdrant:6333
       - BIFROST_URL=http://host.docker.internal:24242/v1
       - PYTHONPATH=/app
+      - TRANSFORMERS_NO_ADVISORY_WARNINGS=1
+      - HF_HUB_DISABLE_PROGRESS_BARS=1
+      - TOKENIZERS_PARALLELISM=false
     volumes:
       - ./app:/app/app
       - ./eval:/app/eval
       - ./config.yaml:/app/config.yaml
+      - ./.streamlit:/app/.streamlit
       - audit_data:/app/data
     extra_hosts:
       - "host.docker.internal:host-gateway"
