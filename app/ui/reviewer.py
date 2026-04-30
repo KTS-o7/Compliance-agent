@@ -73,16 +73,16 @@ def show_reviewer(role: str, rule_store: RuleStore, config: dict) -> None:
                 evaluator = Evaluator()
                 t0 = time.perf_counter()
 
-                # Stream tokens live into a code block so the user sees output immediately
-                stream_placeholder = st.empty()
+                # Stream tokens silently, show a live character count so user knows it's working
+                progress_text = st.empty()
                 collected = []
+                char_count = 0
                 for chunk in evaluator.evaluate_stream(transcript, rules):
                     collected.append(chunk)
-                    # Show last 300 chars of streamed JSON so it doesn't overflow
-                    preview = "".join(collected)[-300:]
-                    stream_placeholder.code(preview, language="json")
+                    char_count += len(chunk)
+                    progress_text.caption(f"⏳ Receiving response... {char_count} characters")
 
-                stream_placeholder.empty()  # clear stream preview once done
+                progress_text.empty()
                 raw_content = "".join(collected)
                 latency = round(time.perf_counter() - t0, 2)
 
