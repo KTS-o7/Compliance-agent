@@ -1,5 +1,5 @@
 streamlit==1.57.0
-qdrant-client==1.16.2
+qdrant-client==1.16.1
 sentence-transformers==5.4.1
 openai==2.33.0
 pydantic==2.13.3
