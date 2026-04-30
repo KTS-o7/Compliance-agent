@@ -16,7 +16,7 @@ Credentials:
 - `senior` / `senior123` — full access (Admin, Reviewer, Audit Log)
 - `junior` / `junior123` — Reviewer only (Tier-1 rules only)
 
-> **Requires:** Docker Desktop running, bifrost LLM proxy running on `localhost:24242`
+> **Requires:** Docker Desktop running. Run `./run.sh` — it starts the MLX model servers automatically.
 
 ---
 
@@ -35,17 +35,18 @@ graph TD
     RuleStore --> BGE["BAAI/bge-base-en-v1.5\nEmbedder (768-dim)"]
     BGE --> Qdrant["Qdrant :6333\n(Docker container)"]
 
-    ReviewerPage --> TriggerDetector["Trigger Detector\nHaiku 4.5"]
-    TriggerDetector --> Bifrost["bifrost :24242\n(OpenAI-compatible)"]
-    Bifrost --> Bedrock["AWS Bedrock"]
+    ReviewerPage --> TriggerDetector["Trigger Detector\nQwen3-4B (MLX)"]
+    TriggerDetector --> Bifrost["bifrost :8080\n(Docker container)"]
+    Bifrost --> MLXTrigger["mlx_lm.server :8081\nQwen3-4B-4bit"]
 
     ReviewerPage --> CorrectiveRAG["Corrective RAG"]
     CorrectiveRAG --> DeterministicRetriever["Deterministic\nTRIGGER_RULE_MAP"]
     CorrectiveRAG --> SemanticRetriever["Semantic Search\nQdrant"]
     SemanticRetriever --> Qdrant
 
-    CorrectiveRAG --> Evaluator["Evaluator\nSonnet 4.6"]
+    CorrectiveRAG --> Evaluator["Evaluator\nQwen3.5-9B (MLX)"]
     Evaluator --> Bifrost
+    Bifrost --> MLXEvaluator["mlx_lm.server :8082\nQwen3.5-9B-MLX-4bit"]
 
     Evaluator --> RegulatoryCard["Regulatory Card\nPASS/FAIL + Citations"]
     RegulatoryCard --> AuditLog["Audit Log\nSQLite data/audit.db"]
@@ -104,22 +105,33 @@ stateDiagram-v2
 
 | Role | Model | Why |
 |------|-------|-----|
-| Trigger detection | `claude-haiku-4-5` (via bifrost) | Fast, cheap, structured JSON output |
-| Evaluation | `claude-sonnet-4-6` (via bifrost) | Deep reasoning, high citation quality |
+| Trigger detection | `Qwen3-4B-4bit` (MLX local) | Fast 4B model, JSON instruction following, no API cost |
+| Evaluation | `Qwen3.5-9B-MLX-4bit` (MLX local) | Strong reasoning, fully local, Apple Silicon optimised |
 | Embeddings | `BAAI/bge-base-en-v1.5` (local) | 84.7% recall, 768-dim, ~420MB, English-optimised |
 
-**LLM access:** Local [bifrost](https://github.com/promptfoo/bifrost) proxy at `localhost:24242` providing an OpenAI-compatible API over AWS Bedrock. To switch to self-hosted Ollama models, update `config.yaml`:
+**LLM access:** Both models run locally via `mlx_lm.server` on Apple Silicon. Requests are proxied through a [bifrost](https://github.com/maximhq/bifrost) Docker container (port 8080) which routes `mlx-trigger/*` → port 8081 and `mlx-evaluator/*` → port 8082.
+
+To switch between local MLX and cloud providers, update `config.yaml` and set `USE_STRUCTURED_OUTPUT` in `.env`:
 
 ```yaml
-bifrost:
-  base_url: "http://localhost:11434/v1"
-  api_key: "ollama"
+# Phase 1 — Cloud (bifrost → AWS Bedrock)
 models:
-  trigger_model: "qwen2.5:3b"
-  evaluator_model: "qwen2.5:7b"
+  trigger_model: "bedrock/global.anthropic.claude-haiku-4-5-20251001-v1:0"
+  evaluator_model: "bedrock/global.anthropic.claude-sonnet-4-6"
+bifrost:
+  base_url: "http://localhost:24242/v1"
 ```
 
-Zero code changes required.
+```yaml
+# Phase 2 — Local MLX (bifrost → mlx_lm.server)
+models:
+  trigger_model: "mlx-trigger/mlx-community/Qwen3-4B-4bit"
+  evaluator_model: "mlx-evaluator/mlx-community/Qwen3.5-9B-MLX-4bit"
+bifrost:
+  base_url: "http://localhost:8080/v1"
+```
+
+Zero app code changes required — only `config.yaml` and `USE_STRUCTURED_OUTPUT` env var.
 
 ---
 
@@ -197,7 +209,9 @@ Transcripts were generated with Claude Sonnet 4.6 via bifrost to accelerate draf
 
 ## Measured QoS Numbers
 
-> Run `python3.11 eval/run_eval.py` to generate these numbers (requires Qdrant running).
+> Run `python3.11 eval/run_eval.py` to generate these numbers (requires Qdrant + MLX servers running).
+
+### Phase 1 — Cloud (bifrost → AWS Bedrock)
 
 | Metric | Result | Target | Status |
 |--------|--------|--------|--------|
@@ -205,14 +219,19 @@ Transcripts were generated with Claude Sonnet 4.6 via bifrost to accelerate draf
 | p95 latency | **11.17s** | ≤ 5s | ❌ Missed |
 | Mean latency | **16.28s** | — | — |
 
-**Why latency missed the target:**
-The p95 of 11.17s is above the 5s target. Root cause: API round-trips through bifrost → AWS Bedrock add ~8–10s per evaluation (trigger detection + evaluator = 2 serial LLM calls). One cold-start outlier (t001: 76s) skewed the mean significantly.
+### Phase 2 — Local MLX (Qwen3-4B trigger + Qwen3.5-9B evaluator on Apple Silicon)
 
-**With self-hosted Ollama** (qwen2.5:3b trigger + qwen2.5:7b evaluator on Apple Silicon via MLX), network latency drops to ~0ms and inference is local — p95 is expected to be well under 5s for short transcripts. This is the Phase 2 target.
+| Metric | Result | Target | Status |
+|--------|--------|--------|--------|
+| Accuracy | **7/10 (70%)** | ≥ 8/10 (80%) | ❌ Missed |
+| p95 latency | **56.41s** | ≤ 5s | ❌ Missed |
+| Mean latency | **40.93s** | — | — |
 
-**Two transcripts missed:**
-- `t001`: FDCPA-807 expected PASS but got FAIL — the transcript contains a debt dispute AND a threat of legal escalation, so the model correctly flagged a potential misrepresentation. Ground truth adjusted to FAIL is arguably more correct.
-- `t005`: FDCPA-805 expected FAIL but got PASS — the agent said "we'll need to continue until we receive official court documentation" which Sonnet 4.6 interpreted as a procedural hold rather than a violation. Borderline case.
+**Phase 2 analysis:**
+
+- **Accuracy (70%):** Qwen3.5-9B is more aggressive than Claude Sonnet 4.6 — it over-flags violations on borderline transcripts (t001, t003) and missed one cease & desist violation (t005). Ground truth was calibrated against Sonnet 4.6 outputs.
+- **Latency:** Local MLX inference on Apple Silicon is 30–76s per evaluation (cold KV cache on first request). This is a hardware constraint — no network latency but the 9B model generates ~20 tok/s on M-series. A smaller evaluator model (4B) would improve latency at the cost of accuracy.
+- **Trade-off:** Phase 2 is fully air-gapped — zero API costs, zero data leaving the device. For production compliance use cases, privacy may outweigh latency.
 
 ---
 
@@ -239,8 +258,10 @@ The p95 of 11.17s is above the 5s target. Root cause: API round-trips through bi
 | Tool | How Used |
 |------|----------|
 | **OpenCode** (Claude Sonnet 4.6) | Primary coding assistant — architecture planning, implementation, test writing |
-| **bifrost + Claude Haiku 4.5** | Trigger detection in the running system |
-| **bifrost + Claude Sonnet 4.6** | Evaluation, QoS transcript generation |
+| **bifrost + Claude Haiku 4.5** | Phase 1 trigger detection |
+| **bifrost + Claude Sonnet 4.6** | Phase 1 evaluation + QoS transcript generation |
+| **mlx_lm.server + Qwen3-4B** | Phase 2 trigger detection (fully local, Apple Silicon) |
+| **mlx_lm.server + Qwen3.5-9B** | Phase 2 evaluation (fully local, Apple Silicon) |
 
 ### How LLM-Generated Code Was Verified
 

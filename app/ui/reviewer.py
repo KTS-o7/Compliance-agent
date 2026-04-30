@@ -46,8 +46,10 @@ def show_reviewer(role: str, rule_store: RuleStore, config: dict) -> None:
         transcript_id = st.text_input("Transcript ID", value=default_tid)
         st.markdown("---")
         st.markdown("**Models**")
-        st.caption("Trigger: `haiku-4-5`")
-        st.caption("Evaluator: `sonnet-4-6`")
+        trigger_name = config["models"]["trigger_model"].split("/")[-1]
+        evaluator_name = config["models"]["evaluator_model"].split("/")[-1]
+        st.caption(f"Trigger: `{trigger_name}`")
+        st.caption(f"Evaluator: `{evaluator_name}`")
 
     evaluate = st.button("Evaluate Compliance", type="primary", disabled=not transcript.strip())
 

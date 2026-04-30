@@ -1,10 +1,10 @@
 models:
-  trigger_model: "bedrock/global.anthropic.claude-haiku-4-5-20251001-v1:0"
-  evaluator_model: "bedrock/global.anthropic.claude-sonnet-4-6"
+  trigger_model: "mlx-trigger/mlx-community/Qwen3-4B-4bit"
+  evaluator_model: "mlx-evaluator/mlx-community/Qwen3.5-9B-MLX-4bit"
 
 bifrost:
-  base_url: "http://localhost:24242/v1"
-  api_key: "bifrost"
+  base_url: "http://localhost:8080/v1"
+  api_key: "dummy"
 
 qdrant:
   url: "http://localhost:6333"

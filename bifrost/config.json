@@ -1,0 +1,46 @@
+{
+  "providers": {
+    "mlx-trigger": {
+      "keys": [
+        {
+          "name": "mlx-trigger-key",
+          "value": "dummy",
+          "models": ["mlx-community/Qwen3-4B-4bit"],
+          "weight": 1.0
+        }
+      ],
+      "network_config": {
+        "base_url": "http://host.docker.internal:8081",
+        "default_request_timeout_in_seconds": 120
+      },
+      "custom_provider_config": {
+        "base_provider_type": "openai",
+        "allowed_requests": {
+          "chat_completion": true,
+          "chat_completion_stream": true
+        }
+      }
+    },
+    "mlx-evaluator": {
+      "keys": [
+        {
+          "name": "mlx-evaluator-key",
+          "value": "dummy",
+          "models": ["mlx-community/Qwen3.5-9B-MLX-4bit"],
+          "weight": 1.0
+        }
+      ],
+      "network_config": {
+        "base_url": "http://host.docker.internal:8082",
+        "default_request_timeout_in_seconds": 180
+      },
+      "custom_provider_config": {
+        "base_provider_type": "openai",
+        "allowed_requests": {
+          "chat_completion": true,
+          "chat_completion_stream": true
+        }
+      }
+    }
+  }
+}

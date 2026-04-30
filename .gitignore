@@ -5,3 +5,6 @@ __pycache__/
 data/audit.db
 eval/qos_results.json
 .DS_Store
+bifrost/*.db
+bifrost/*.db-shm
+bifrost/*.db-wal

@@ -23,3 +23,14 @@ def get_models() -> dict[str, str]:
         "trigger": cfg["models"]["trigger_model"],
         "evaluator": cfg["models"]["evaluator_model"],
     }
+
+
+def use_structured_output() -> bool:
+    """
+    Returns True when the backend supports OpenAI beta structured output
+    (response_format JSON schema + beta.parse / beta.stream).
+    Set USE_STRUCTURED_OUTPUT=false for local MLX servers which don't support it.
+    Defaults to True for cloud providers (bifrost/bedrock/openai).
+    """
+    val = os.environ.get("USE_STRUCTURED_OUTPUT", "true").lower()
+    return val not in ("false", "0", "no")
