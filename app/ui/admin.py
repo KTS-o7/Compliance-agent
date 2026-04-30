@@ -44,3 +44,29 @@ def show_admin(rule_store: RuleStore) -> None:
         )
         rule_store.add_rule(rule)
         st.success(f"Rule **{rule_id}** added. Total: {rule_store.count()}")
+
+    # --- Rule Library Browser ---
+    st.markdown("---")
+    st.subheader("Existing Rules")
+
+    SEVERITY_COLOUR = {"critical": "🔴", "high": "🟠", "medium": "🟡", "low": "🟢"}
+    ROLE_ICON = {"all": "👥", "junior": "🔵", "senior": "🟣"}
+
+    all_rules = rule_store.get_all_rules()
+    if not all_rules:
+        st.info("No rules in library yet.")
+    else:
+        for rule in sorted(all_rules, key=lambda r: r.id):
+            sc = SEVERITY_COLOUR.get(rule.severity, "")
+            rc = ROLE_ICON.get(rule.role_tag, "")
+            with st.expander(f"{sc} **{rule.id}** — {rule.citation} {rc} `{rule.role_tag}`"):
+                st.markdown(f"**Severity:** {rule.severity.upper()}")
+                st.markdown(f"**Triggers:** {', '.join(rule.trigger_labels)}")
+                st.markdown(f"**Agent Must:**")
+                for item in rule.agent_must:
+                    st.markdown(f"  - {item}")
+                if rule.agent_must_not:
+                    st.markdown(f"**Agent Must NOT:**")
+                    for item in rule.agent_must_not:
+                        st.markdown(f"  - {item}")
+                st.markdown(f"**Rule Text:** {rule.text}")

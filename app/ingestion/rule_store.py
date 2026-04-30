@@ -87,3 +87,12 @@ class RuleStore:
 
     def count(self) -> int:
         return self.client.count(collection_name=COLLECTION).count
+
+    def get_all_rules(self) -> list[Rule]:
+        results = self.client.scroll(
+            collection_name=COLLECTION,
+            limit=100,
+            with_payload=True,
+            with_vectors=False,
+        )
+        return [Rule(**point.payload) for point in results[0]]
