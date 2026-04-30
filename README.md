@@ -6,17 +6,35 @@ An AI auditor that evaluates debt collection agent transcripts against complianc
 
 ## Quick Start
 
+### Prerequisites (one-time)
+
+| Requirement | Install |
+|-------------|---------|
+| Docker Desktop | https://www.docker.com/products/docker-desktop — must be **running** |
+| Ollama | `brew install ollama` or https://ollama.com |
+| qwen3.5:9b model | `ollama pull qwen3.5:9b` (~5 GB) |
+
+### Run
+
 ```bash
+# 1. Start Ollama (keep this terminal open)
+ollama serve
+
+# 2. In a new terminal — clone and run
+git clone https://github.com/KTS-o7/Compliance-agent.git
+cd Compliance-agent
 ./run.sh
 ```
+
+`run.sh` will auto-create `.env` from `.env.example` on first run. No manual config needed.
 
 Then open **http://localhost:8502**
 
 Credentials:
 - `senior` / `senior123` — full access (Admin, Reviewer, Audit Log)
-- `junior` / `junior123` — Reviewer only (Tier-1 rules only)
+- `junior` / `junior123` — Reviewer only (8 Tier-1 rules)
 
-> **Requires:** Docker Desktop running. Run `./run.sh` — it starts the MLX model servers automatically.
+To stop: `Ctrl+C` in the `run.sh` terminal (runs `docker compose down` automatically).
 
 ---
 

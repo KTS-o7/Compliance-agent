@@ -1,6 +1,12 @@
 #!/bin/bash
 set -e
 
+# Bootstrap .env from example if not present
+if [ ! -f .env ] && [ -f .env.example ]; then
+  cp .env.example .env
+  echo "Created .env from .env.example"
+fi
+
 # Load .env if present
 if [ -f .env ]; then
   export $(grep -v '^#' .env | grep -v '^$' | xargs)
