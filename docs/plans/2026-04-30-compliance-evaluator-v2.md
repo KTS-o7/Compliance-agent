@@ -27,7 +27,7 @@
 
 | Decision | Choice | Reason |
 |----------|--------|--------|
-| Model runtime | bifrost at `localhost:24242` (OpenAI-compatible) | Already running locally; swap to MLX/Ollama by changing config.yaml |
+| Self-hosted models | **Phase 1:** bifrost (Haiku 4.5 + Sonnet 4.6) for fast iteration and quality validation. **Phase 2:** swap `config.yaml` to local Ollama (qwen2.5:3b trigger + qwen2.5:7b evaluator), re-run QoS eval, submit with Ollama as primary. Zero code changes needed — only config.yaml changes. | Spec requires self-hosted; bifrost first to iterate fast |
 | Trigger model | `bedrock/global.anthropic.claude-haiku-4-5-20251001-v1:0` | Fast, cheap, structured JSON output |
 | Evaluator model | `bedrock/global.anthropic.claude-sonnet-4-6` | Deep reasoning, high citation quality |
 | Embedding model | `BAAI/bge-base-en-v1.5` (768-dim, ~420MB) | 84.7% hit rate vs 78.1% for MiniLM; best quality/size for English compliance text |
@@ -60,24 +60,51 @@
 | Evaluator strictness | Strict — only evaluate rules passed in context | No hallucinated rules; predictable output |
 | Zero-rules handling | `st.warning()` with guidance message, no evaluation sent | Better UX than empty card or crash |
 
+## Two-Phase Model Strategy
+
+**Phase 1 — Development & Validation (bifrost):**
+- Use `http://localhost:24242/v1` with Haiku 4.5 + Sonnet 4.6
+- Fast iteration, high quality output, easy debugging
+- Validate full pipeline works end-to-end
+- Run QoS eval to confirm accuracy targets are met
+
+**Phase 2 — Final Submission (Ollama, self-hosted):**
+- Install Ollama locally: `brew install ollama`
+- Pull models: `ollama pull qwen2.5:3b && ollama pull qwen2.5:7b`
+- Update `config.yaml`:
+  ```yaml
+  bifrost:
+    base_url: "http://localhost:11434/v1"
+    api_key: "ollama"
+  models:
+    trigger_model: "qwen2.5:3b"
+    evaluator_model: "qwen2.5:7b"
+  ```
+- Re-run `python eval/run_eval.py` with Ollama models
+- If p95 > 5s or accuracy drops below 8/10, document honestly in README
+- Submit with Ollama config as the default in `config.yaml`
+
+> **Zero code changes** — the `openai` SDK with `base_url` works identically against bifrost and Ollama's OpenAI-compatible endpoint.
+
 ---
 
-## Timebox (16 hours)
+
 
 | Hours | Task |
 |-------|------|
 | 0–0.5 | Task 1: Scaffold — dirs, Docker Compose, config, run.sh |
 | 0.5–1.5 | Task 2: Schemas — Rule, Verdict, RegulatoryCard, AuditEntry |
 | 1.5–3 | Task 3: Rule store — Qdrant upsert, semantic search (BGE prefix), seed data |
-| 3–4.5 | Task 4: Trigger detector — Haiku 4.5, JSON labels, markdown fence handling |
+| 3–4.5 | Task 4: Trigger detector — Haiku 4.5 via bifrost, JSON labels |
 | 4.5–6 | Task 5: Deterministic retrieval — TRIGGER_RULE_MAP |
-| 6–7.5 | Task 6: Corrective RAG — union + disagreement logging (no re-query) |
-| 7.5–9.5 | Task 7: Evaluator — Sonnet 4.6, PASS/FAIL, citations, error handling |
+| 6–7.5 | Task 6: Corrective RAG — union + disagreement logging |
+| 7.5–9.5 | Task 7: Evaluator — Sonnet 4.6 via bifrost, PASS/FAIL, citations |
 | 9.5–10 | Task 8: Audit log — SQLite append-only |
 | 10–10.5 | Task 9: Auth — hardcoded users, role filter |
-| 10.5–13 | Task 10: Streamlit UI — admin + reviewer + audit log pages, error banners |
-| 13–14.5 | Task 11: QoS eval set — generate 10 transcripts with Sonnet 4.6, verify, run_eval.py |
-| 14.5–15.5 | Task 12: README + Mermaid diagrams (system + state diagrams) |
+| 10.5–13 | Task 10: Streamlit UI — admin + reviewer + audit log pages |
+| 13–14 | Task 11: QoS eval set — generate 10 transcripts, verify, run_eval.py (bifrost) |
+| 14–14.5 | Task 11b: Switch config.yaml to Ollama, re-run QoS eval, record final numbers |
+| 14.5–15.5 | Task 12: README + Mermaid diagrams |
 | 15.5–16 | Task 13: Final smoke test + push |
 
 ---
