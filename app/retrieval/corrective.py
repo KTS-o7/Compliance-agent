@@ -30,15 +30,21 @@ class CorrectiveRetriever:
         sem_rules = self.sem.search(transcript, role=role)
         sem_ids = {r.id for r in sem_rules}
 
-        union_ids = det_ids | sem_ids
         overlap = det_ids & sem_ids
-        disagreement_ratio = 1.0 - (len(overlap) / max(len(union_ids), 1))
-        disagreed = disagreement_ratio > self.threshold
+
+        # Disagreement = deterministic rules that semantic completely missed.
+        # Semantic returning *extra* rules is not disagreement — it's enrichment.
+        # Only flag when semantic misses a significant fraction of det_ids.
+        if det_ids:
+            missed_ratio = len(det_ids - sem_ids) / len(det_ids)
+        else:
+            missed_ratio = 0.0
+        disagreed = missed_ratio > self.threshold
 
         if disagreed:
             logger.warning(
-                "Corrective RAG disagreement | det=%s | sem=%s | overlap=%s | ratio=%.2f",
-                sorted(det_ids), sorted(sem_ids), sorted(overlap), disagreement_ratio
+                "Corrective RAG disagreement | det=%s | sem_missed=%s | missed_ratio=%.2f",
+                sorted(det_ids), sorted(det_ids - sem_ids), missed_ratio
             )
 
         det_rules = self.store.get_by_ids(list(det_ids), role=role)

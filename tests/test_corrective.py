@@ -16,6 +16,7 @@ def store():
 
 
 def test_no_disagreement_when_sets_match(store):
+    # Semantic finds exactly the same rules as deterministic — no disagreement
     store.semantic_search.return_value = [make_rule("A"), make_rule("B")]
     store.get_by_ids.return_value = [make_rule("A"), make_rule("B")]
     cr = CorrectiveRetriever(rule_store=store)
@@ -24,7 +25,18 @@ def test_no_disagreement_when_sets_match(store):
     assert not disagreed
 
 
-def test_disagreement_flagged_when_sets_differ(store):
+def test_no_disagreement_when_semantic_finds_extra(store):
+    # Semantic returns det rules PLUS extra — enrichment, not disagreement
+    store.semantic_search.return_value = [make_rule("A"), make_rule("B"), make_rule("C"), make_rule("D"), make_rule("E")]
+    store.get_by_ids.return_value = [make_rule("A"), make_rule("B")]
+    cr = CorrectiveRetriever(rule_store=store)
+    cr.det.get_rule_ids = lambda triggers: ["A", "B"]
+    rules, disagreed = cr.retrieve(["Debt Dispute"], "text", "senior")
+    assert not disagreed  # semantic found all det rules + more — not a problem
+
+
+def test_disagreement_flagged_when_semantic_misses_det_rules(store):
+    # Semantic completely misses what deterministic found — real disagreement
     store.semantic_search.return_value = [make_rule("C"), make_rule("D")]
     store.get_by_ids.return_value = [make_rule("A"), make_rule("B")]
     cr = CorrectiveRetriever(rule_store=store)
