@@ -38,6 +38,14 @@ To stop: `Ctrl+C` in the `run.sh` terminal (runs `docker compose down` automatic
 
 ---
 
+## Demo
+
+https://github.com/KTS-o7/Compliance-agent/raw/main/compliance_agent_demo.mp4
+
+The recording walks through: senior login → rule ingestion → transcript evaluation with live Regulatory Card → audit log → junior login showing restricted rule scope.
+
+---
+
 ## Architecture
 
 > Diagrams below are the architecture sketch for this submission. Rendered natively on GitHub.
