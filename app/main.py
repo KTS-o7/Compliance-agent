@@ -24,10 +24,11 @@ def load_config() -> dict:
 
 def load_rule_store(qdrant_url: str):
     if "rule_store" not in st.session_state:
-        from app.ingestion.rule_store import RuleStore
+        from app.ingestion.rule_store import RuleStore, prefetch_embedder
         from app.ingestion.seed_rules import seed
         store = RuleStore(qdrant_url=qdrant_url)
         seed(store)
+        prefetch_embedder()
         st.session_state["rule_store"] = store
     return st.session_state["rule_store"]
 

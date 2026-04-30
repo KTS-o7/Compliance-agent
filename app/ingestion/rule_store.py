@@ -22,6 +22,12 @@ def _get_embedder() -> SentenceTransformer:
     return _EMBEDDER
 
 
+def prefetch_embedder() -> None:
+    """Load BGE model into memory eagerly. Call once at app startup so the
+    first evaluation request does not pay the model-load latency spike."""
+    _get_embedder()
+
+
 def _rule_id_to_uuid(rule_id: str) -> str:
     return str(uuid.uuid5(uuid.NAMESPACE_DNS, rule_id))
 

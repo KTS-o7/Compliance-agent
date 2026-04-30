@@ -1,5 +1,6 @@
 from __future__ import annotations
 import logging
+from concurrent.futures import ThreadPoolExecutor
 from typing import TYPE_CHECKING
 from app.models.schemas import Rule
 from app.retrieval.deterministic import DeterministicRetriever
@@ -26,8 +27,11 @@ class CorrectiveRetriever:
     def retrieve(
         self, triggers: list[str], transcript: str, role: str = "senior"
     ) -> tuple[list[Rule], bool]:
-        det_ids = set(self.det.get_rule_ids(triggers))
-        sem_rules = self.sem.search(transcript, role=role)
+        with ThreadPoolExecutor(max_workers=2) as ex:
+            fut_det = ex.submit(self.det.get_rule_ids, triggers)
+            fut_sem = ex.submit(self.sem.search, transcript, role=role)
+            det_ids = set(fut_det.result())
+            sem_rules = fut_sem.result()
         sem_ids = {r.id for r in sem_rules}
 
         overlap = det_ids & sem_ids
