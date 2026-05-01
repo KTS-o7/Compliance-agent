@@ -289,12 +289,13 @@ Transcripts were generated with Claude Sonnet 4.6 via bifrost to accelerate draf
 
 ## What I'd Do Differently With More Time
 
-1. **Better UI framework** — Streamlit is great for prototyping but has real limitations: no real-time WebSocket streaming, no component-level state management, no proper routing. I'd rebuild the frontend in **Next.js** with a FastAPI backend — proper token streaming via SSE, role-based route guards, and a cleaner component model for the Regulatory Card.
+1. **Better UI framework** — Streamlit is great for prototyping but has real limitations: no real WebSocket streaming, no component-level state management, no proper routing. I'd rebuild the frontend in **Next.js** with a FastAPI backend — proper token streaming via SSE, role-based route guards, and a cleaner component model for the Regulatory Card.
 
-2. **Stronger models** — `qwen3.5:9b` was the right call for an 18GB unified memory constraint, but with more headroom the obvious upgrades are:
-   - **Trigger:** `qwen3:8b` (dense, 128K context, better instruction following than 9B MoE)
-   - **Evaluator:** `qwen3.5-35b-a3b` (35B total / 3B active MoE — fits 16GB VRAM, 44 tok/s, 262K context, Apache 2.0) or `qwen3:32b` for maximum reasoning quality on a single GPU
-   - On a multi-GPU box: `qwen3.5-122b-a10b` (122B MoE, beats GPT-5 mini on tool use per benchmarks)
+2. **Stronger models** — `qwen3.5:9b` was the right call for an 18GB unified memory constraint, but the 2026 model landscape has moved fast:
+   - **Trigger:** `gemma4:4b` (Google, April 2026 — 256K context, 85 tok/s on consumer hardware, Gemma license) or `phi-4-mini` (Microsoft, 3.8B, 128K context, MIT) — both fit under 4GB VRAM
+   - **Evaluator (single GPU):** `qwen3.5-35b-a3b` (Alibaba, Feb 2026 — 35B/3B active MoE, 262K context, 44 tok/s on 16GB, Apache 2.0) or `kimi-k2.6` (Moonshot AI, April 2026 — 1T/32B active MoE, 256K context, multimodal, Modified MIT — commercial use permitted)
+   - **Evaluator (multi-GPU / high-end):** `glm-5.1` (Z.AI — 754B/40B active, MIT license, #1 open-weight on BenchLM leaderboard as of April 2026, score 84) or `qwen3.5-397b` (Alibaba — Apache 2.0, score 81 on BenchLM)
+   - **Skip:** `minimax-m2.7` — strong model but non-commercial license; commercial use requires written approval from MiniMax, not suitable for a compliance product
 
 3. **Proper auth** — bcrypt password hashing, JWT session tokens, per-user audit history.
 
@@ -306,7 +307,7 @@ Transcripts were generated with Claude Sonnet 4.6 via bifrost to accelerate draf
 
 7. **Structured citations** — Parse turn numbers from transcripts at ingestion time so citations are always in the format `Turn N` rather than free-text.
 
-8. **Async pipeline** — The trigger → retrieval → evaluation chain is sequential. With a proper async framework (FastAPI + asyncio), retrieval and trigger detection could overlap with the start of the evaluation prompt construction, shaving latency.
+8. **Async pipeline** — The trigger → retrieval → evaluation chain is sequential. With a proper async framework (FastAPI + asyncio), retrieval could overlap with prompt construction, shaving latency on every request.
 
 ---
 
