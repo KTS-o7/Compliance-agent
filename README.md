@@ -10,7 +10,7 @@ An AI auditor that evaluates debt collection agent transcripts against complianc
 
 | Requirement | Install |
 |-------------|---------|
-| Docker Desktop | https://www.docker.com/products/docker-desktop — must be **running** |
+| Docker Desktop | https://www.docker.com/products/docker-desktop - must be **running** |
 | Ollama | `brew install ollama` or https://ollama.com |
 | qwen3.5:9b model | `ollama pull qwen3.5:9b` (~5 GB) |
 
@@ -20,7 +20,7 @@ An AI auditor that evaluates debt collection agent transcripts against complianc
 # 1. Start Ollama (keep this terminal open)
 ollama serve
 
-# 2. In a new terminal — clone and run
+# 2. In a new terminal - clone and run
 git clone https://github.com/KTS-o7/Compliance-agent.git
 cd Compliance-agent
 ./run.sh
@@ -31,8 +31,8 @@ cd Compliance-agent
 Then open **http://localhost:8502**
 
 Credentials:
-- `senior` / `senior123` — full access (Admin, Reviewer, Audit Log)
-- `junior` / `junior123` — Reviewer only (8 Tier-1 rules)
+- `senior` / `senior123` - full access (Admin, Reviewer, Audit Log)
+- `junior` / `junior123` - Reviewer only (8 Tier-1 rules)
 
 To stop: `Ctrl+C` in the `run.sh` terminal (runs `docker compose down` automatically).
 
@@ -60,10 +60,10 @@ graph TD
     Login -->|senior| AuditPage["Audit Log Page"]
 
     AdminPage --> RuleStore["Rule Store\nrule_store.py"]
-    RuleStore --> BGE["BAAI/bge-base-en-v1.5\nEmbedder — baked into image"]
+    RuleStore --> BGE["BAAI/bge-base-en-v1.5\nEmbedder - baked into image"]
     BGE --> Qdrant["Qdrant :6333\n(Docker container)"]
 
-    ReviewerPage --> TriggerDetector["Trigger Detector\nsmall model — qwen3.5:9b"]
+    ReviewerPage --> TriggerDetector["Trigger Detector\nsmall model - qwen3.5:9b"]
     TriggerDetector --> Ollama["Ollama :11434\n(host process, MLX-powered)"]
     Ollama --> Model["qwen3.5:9b\n~5GB, Apple Silicon MLX"]
 
@@ -72,14 +72,14 @@ graph TD
     CorrectiveRAG --> SemanticRetriever["Semantic Search\nBGE embed → Qdrant cosine"]
     SemanticRetriever --> Qdrant
 
-    CorrectiveRAG --> Evaluator["Evaluator\nlarge model — qwen3.5:9b"]
+    CorrectiveRAG --> Evaluator["Evaluator\nlarge model - qwen3.5:9b"]
     Evaluator --> Ollama
 
     Evaluator --> RegulatoryCard["Regulatory Card\nPASS/FAIL + Reasoning + Citations"]
-    RegulatoryCard --> AuditLog["Audit Log\nSQLite — data/audit.db"]
+    RegulatoryCard --> AuditLog["Audit Log\nSQLite - data/audit.db"]
     AuditPage --> AuditLog
 
-    Bifrost["Bifrost :8080\n(Docker — cloud backend only)"]
+    Bifrost["Bifrost :8080\n(Docker - cloud backend only)"]
 ```
 
 ### Trigger Detection State Diagram
@@ -138,10 +138,10 @@ stateDiagram-v2
 | Role | Model | Why |
 |------|-------|-----|
 | Trigger detection | `qwen3.5:9b` via Ollama | Thinking model with `reasoning_effort:none` for fast JSON label output |
-| Evaluation | `qwen3.5:9b` via Ollama | Same model — strong reasoning, citation-quality output, 18GB fits in unified memory |
-| Embeddings | `BAAI/bge-base-en-v1.5` (local) | 768-dim, English-optimised, baked into Docker image — no download at runtime |
+| Evaluation | `qwen3.5:9b` via Ollama | Same model - strong reasoning, citation-quality output, 18GB fits in unified memory |
+| Embeddings | `BAAI/bge-base-en-v1.5` (local) | 768-dim, English-optimised, baked into Docker image - no download at runtime |
 
-**LLM access (default — Ollama):** Both trigger and evaluator call Ollama directly at `localhost:11434/v1` via the OpenAI-compatible API. Ollama 0.19+ uses MLX natively on Apple Silicon. No bifrost proxy needed. Thinking is disabled via `reasoning_effort: none` in `extra_body`.
+**LLM access (default - Ollama):** Both trigger and evaluator call Ollama directly at `localhost:11434/v1` via the OpenAI-compatible API. Ollama 0.19+ uses MLX natively on Apple Silicon. No bifrost proxy needed. Thinking is disabled via `reasoning_effort: none` in `extra_body`.
 
 **LLM access (cloud backend):** Requests route through a [bifrost](https://github.com/maximhq/bifrost) Docker container (port 8080) → AWS Bedrock. Trigger uses Haiku 4.5, evaluator uses Sonnet 4.6. Switch by setting `LLM_BACKEND=cloud` in `.env` and updating `config.yaml`:
 
@@ -154,7 +154,7 @@ bifrost:
   base_url: "http://localhost:24242/v1"
 ```
 
-Zero app code changes required — only `.env` and `config.yaml`.
+Zero app code changes required - only `.env` and `config.yaml`.
 
 ---
 
@@ -188,7 +188,7 @@ class Rule(BaseModel):
     agent_must_not: list[str]    # prohibited behaviours
     role_tag: Literal["junior", "senior", "all"]  # role visibility
     trigger_labels: list[str]    # which triggers activate this rule
-    text: str                    # full rule text — embedded in Qdrant
+    text: str                    # full rule text - embedded in Qdrant
 ```
 
 10 rules are pre-seeded at startup covering FDCPA, CFPB, FCRA, and Bankruptcy statutes. `BANKRUPTCY-362` and `FCRA-623` are `senior`-only rules.
@@ -208,10 +208,10 @@ Two hardcoded users with different scopes:
 
 | Rule | Statute | Why senior-only |
 |------|---------|-----------------|
-| `BANKRUPTCY-362` | 11 U.S.C. § 362 | Automatic stay violations carry legal liability — escalation required |
+| `BANKRUPTCY-362` | 11 U.S.C. § 362 | Automatic stay violations carry legal liability - escalation required |
 | `FCRA-623` | 15 U.S.C. § 1681s-2 | Furnisher dispute handling requires senior sign-off |
 
-Role filtering is enforced at the Qdrant query level — both the semantic search and deterministic `get_by_ids` apply a `MatchAny` filter on `role_tag`. A junior reviewer submitting a bankruptcy transcript will not see a BANKRUPTCY-362 verdict at all; the rule is outside their evaluation scope.
+Role filtering is enforced at the Qdrant query level - both the semantic search and deterministic `get_by_ids` apply a `MatchAny` filter on `role_tag`. A junior reviewer submitting a bankruptcy transcript will not see a BANKRUPTCY-362 verdict at all; the rule is outside their evaluation scope.
 
 ---
 
@@ -235,16 +235,16 @@ For each transcript evaluation, rules are retrieved via **two parallel paths**:
 
 | ID | Trigger | Key Rule | Expected |
 |----|---------|----------|----------|
-| t001 | Debt Dispute | FDCPA-809 | FAIL — agent ignores dispute |
-| t002 | Debt Dispute | FDCPA-809 | PASS — agent handles correctly |
-| t003 | Financial Hardship | CFPB-HARDSHIP-01 | FAIL — agent denies programs |
-| t004 | Payment Plan | FDCPA-808, CFPB-HARDSHIP-01 | PASS — agent offers plan + program |
-| t005 | Bankruptcy | BANKRUPTCY-362, FDCPA-805 | FAIL — agent continues collecting |
-| t006 | Cease and Desist | FDCPA-805, FDCPA-806 | PASS — agent stops immediately |
-| t007 | Fraud Claim | FCRA-605 | FAIL — no identity verification |
-| t008 | Complaint Escalation | CFPB-COMPLAINT-01 | PASS — escalates properly |
-| t009 | Identity Verification | FCRA-605 | PASS — handles correctly |
-| t010 | Right to Validation | FDCPA-809 | FAIL — continues without validating |
+| t001 | Debt Dispute | FDCPA-809 | FAIL - agent ignores dispute |
+| t002 | Debt Dispute | FDCPA-809 | PASS - agent handles correctly |
+| t003 | Financial Hardship | CFPB-HARDSHIP-01 | FAIL - agent denies programs |
+| t004 | Payment Plan | FDCPA-808, CFPB-HARDSHIP-01 | PASS - agent offers plan + program |
+| t005 | Bankruptcy | BANKRUPTCY-362, FDCPA-805 | FAIL - agent continues collecting |
+| t006 | Cease and Desist | FDCPA-805, FDCPA-806 | PASS - agent stops immediately |
+| t007 | Fraud Claim | FCRA-605 | FAIL - no identity verification |
+| t008 | Complaint Escalation | CFPB-COMPLAINT-01 | PASS - escalates properly |
+| t009 | Identity Verification | FCRA-605 | PASS - handles correctly |
+| t010 | Right to Validation | FDCPA-809 | FAIL - continues without validating |
 
 Transcripts were generated with Claude Sonnet 4.6 via bifrost to accelerate drafting, then manually reviewed to ensure each transcript unambiguously supports its ground truth verdict.
 
@@ -254,33 +254,33 @@ Transcripts were generated with Claude Sonnet 4.6 via bifrost to accelerate draf
 
 > Run `python3.11 eval/run_eval.py` to generate these numbers (requires Qdrant + Ollama running).
 
-### Phase 1 — Cloud (bifrost → AWS Bedrock)
+### Phase 1 - Cloud (bifrost → AWS Bedrock)
 
 | Metric | Result | Target | Status |
 |--------|--------|--------|--------|
 | Accuracy | **8/10 (80%)** | ≥ 8/10 (80%) | ✅ Met |
 | p95 latency | **11.17s** | ≤ 5s | ❌ Missed |
-| Mean latency | **16.28s** | — | — |
+| Mean latency | **16.28s** | - | - |
 
-### Phase 2 — Local MLX via mlx_lm.server (Qwen3-4B trigger + Qwen3.5-9B evaluator)
+### Phase 2 - Local MLX via mlx_lm.server (Qwen3-4B trigger + Qwen3.5-9B evaluator)
 
 | Metric | Result | Target | Status |
 |--------|--------|--------|--------|
 | Accuracy | **7/10 (70%)** | ≥ 8/10 (80%) | ❌ Missed |
 | p95 latency | **56.41s** | ≤ 5s | ❌ Missed |
-| Mean latency | **40.93s** | — | — |
+| Mean latency | **40.93s** | - | - |
 
-### Phase 3 — Ollama 0.19 (MLX-powered, Qwen3.5-9B for both trigger + evaluator)
+### Phase 3 - Ollama 0.19 (MLX-powered, Qwen3.5-9B for both trigger + evaluator)
 
 | Metric | Result | Target | Status |
 |--------|--------|--------|--------|
 | Accuracy | **9/10 (90%)** | ≥ 8/10 (80%) | ✅ Met |
 | p95 latency | **43.05s** | ≤ 5s | ❌ Missed |
-| Mean latency | **34.94s** | — | — |
+| Mean latency | **34.94s** | - | - |
 
 **Phase 3 analysis:**
 
-- **Accuracy (90%):** Best local result — fixed ground truth (FDCPA-805 removed from t005, correct statute is BANKRUPTCY-362), stricter evaluator prompt, and `severity` default prevents silent parse failures. One remaining miss: t001 FDCPA-807 — agent's "goes to our legal team" is ambiguous; model flags it as a false threat, ground truth expects PASS.
+- **Accuracy (90%):** Best local result - fixed ground truth (FDCPA-805 removed from t005, correct statute is BANKRUPTCY-362), stricter evaluator prompt, and `severity` default prevents silent parse failures. One remaining miss: t001 FDCPA-807 - agent's "goes to our legal team" is ambiguous; model flags it as a false threat, ground truth expects PASS.
 - **vs Phase 2:** Ollama 0.19 (MLX-powered) is 25% faster than direct mlx_lm.server (p95 43s vs 56s) and 20% more accurate (90% vs 70%).
 - **Simplicity:** Ollama manages model loading, MLX acceleration, and OpenAI-compatible API in one process. No separate mlx_lm.server needed.
 - **Trade-off:** Fully air-gapped, zero API cost, zero data leaving device. Latency is the cost of 9B model inference on 18GB unified memory.
@@ -289,25 +289,25 @@ Transcripts were generated with Claude Sonnet 4.6 via bifrost to accelerate draf
 
 ## What I'd Do Differently With More Time
 
-1. **Better UI framework** — Streamlit is great for prototyping but has real limitations: no real WebSocket streaming, no component-level state management, no proper routing. I'd rebuild the frontend in **Next.js** with a FastAPI backend — proper token streaming via SSE, role-based route guards, and a cleaner component model for the Regulatory Card.
+1. **Better UI framework** - Streamlit is great for prototyping but has real limitations: no real WebSocket streaming, no component-level state management, no proper routing. I'd rebuild the frontend in **Next.js** with a FastAPI backend - proper token streaming via SSE, role-based route guards, and a cleaner component model for the Regulatory Card.
 
-2. **Stronger models** — `qwen3.5:9b` was the right call for an 18GB unified memory constraint, but the 2026 model landscape has moved fast:
-   - **Trigger:** `gemma4:4b` (Google, April 2026 — 256K context, 85 tok/s on consumer hardware, Gemma license) or `phi-4-mini` (Microsoft, 3.8B, 128K context, MIT) — both fit under 4GB VRAM
-   - **Evaluator (single GPU):** `qwen3.5-35b-a3b` (Alibaba, Feb 2026 — 35B/3B active MoE, 262K context, 44 tok/s on 16GB, Apache 2.0) or `kimi-k2.6` (Moonshot AI, April 2026 — 1T/32B active MoE, 256K context, multimodal, Modified MIT — commercial use permitted)
-   - **Evaluator (multi-GPU / high-end):** `glm-5.1` (Z.AI — 754B/40B active, MIT license, #1 open-weight on BenchLM leaderboard as of April 2026, score 84) or `qwen3.5-397b` (Alibaba — Apache 2.0, score 81 on BenchLM)
-   - **Skip:** `minimax-m2.7` — strong model but non-commercial license; commercial use requires written approval from MiniMax, not suitable for a compliance product
+2. **Stronger models** - `qwen3.5:9b` was the right call for an 18GB unified memory constraint, but the 2026 model landscape has moved fast:
+   - **Trigger:** `gemma4:4b` (Google, April 2026 - 256K context, 85 tok/s on consumer hardware, Gemma license) or `phi-4-mini` (Microsoft, 3.8B, 128K context, MIT) - both fit under 4GB VRAM
+   - **Evaluator (single GPU):** `qwen3.5-35b-a3b` (Alibaba, Feb 2026 - 35B/3B active MoE, 262K context, 44 tok/s on 16GB, Apache 2.0) or `kimi-k2.6` (Moonshot AI, April 2026 - 1T/32B active MoE, 256K context, multimodal, Modified MIT - commercial use permitted)
+   - **Evaluator (multi-GPU / high-end):** `glm-5.1` (Z.AI - 754B/40B active, MIT license, #1 open-weight on BenchLM leaderboard as of April 2026, score 84) or `qwen3.5-397b` (Alibaba - Apache 2.0, score 81 on BenchLM)
+   - **Skip:** `minimax-m2.7` - strong model but non-commercial license; commercial use requires written approval from MiniMax, not suitable for a compliance product
 
-3. **Proper auth** — bcrypt password hashing, JWT session tokens, per-user audit history.
+3. **Proper auth** - bcrypt password hashing, JWT session tokens, per-user audit history.
 
-4. **PDF export** — Generate a signed, timestamped PDF Regulatory Card for compliance teams.
+4. **PDF export** - Generate a signed, timestamped PDF Regulatory Card for compliance teams.
 
-5. **More eval transcripts** — 10 is the minimum. A real benchmark would cover edge cases: multiple simultaneous triggers, ambiguous transcripts, multi-turn disputes.
+5. **More eval transcripts** - 10 is the minimum. A real benchmark would cover edge cases: multiple simultaneous triggers, ambiguous transcripts, multi-turn disputes.
 
-6. **Retrieval tuning** — The `disagreement_threshold` of 0.5 is a reasonable default but should be calibrated against a larger ground-truth set.
+6. **Retrieval tuning** - The `disagreement_threshold` of 0.5 is a reasonable default but should be calibrated against a larger ground-truth set.
 
-7. **Structured citations** — Parse turn numbers from transcripts at ingestion time so citations are always in the format `Turn N` rather than free-text.
+7. **Structured citations** - Parse turn numbers from transcripts at ingestion time so citations are always in the format `Turn N` rather than free-text.
 
-8. **Async pipeline** — The trigger → retrieval → evaluation chain is sequential. With a proper async framework (FastAPI + asyncio), retrieval could overlap with prompt construction, shaving latency on every request.
+8. **Async pipeline** - The trigger → retrieval → evaluation chain is sequential. With a proper async framework (FastAPI + asyncio), retrieval could overlap with prompt construction, shaving latency on every request.
 
 ---
 
@@ -315,7 +315,7 @@ Transcripts were generated with Claude Sonnet 4.6 via bifrost to accelerate draf
 
 | Tool | How Used |
 |------|----------|
-| **OpenCode** (Claude Sonnet 4.6) | Primary coding assistant — architecture planning, implementation, test writing |
+| **OpenCode** (Claude Sonnet 4.6) | Primary coding assistant - architecture planning, implementation, test writing |
 | **bifrost + Claude Haiku 4.5** | Phase 1 trigger detection |
 | **bifrost + Claude Sonnet 4.6** | Phase 1 evaluation + QoS transcript generation |
 | **mlx_lm.server + Qwen3-4B** | Phase 2 trigger detection (fully local, Apple Silicon) |
@@ -323,10 +323,10 @@ Transcripts were generated with Claude Sonnet 4.6 via bifrost to accelerate draf
 
 ### How LLM-Generated Code Was Verified
 
-1. **Unit tests** — Every module has a test file with mocked dependencies. Tests were written alongside the code and must pass before committing.
-2. **Manual code review** — Each generated file was read and verified for correctness before committing.
-3. **QoS eval set** — 10 transcripts with known ground truth provide end-to-end validation of the full pipeline.
-4. **Type annotations + Pydantic** — All data models are Pydantic v2 with `Literal` type constraints, catching schema errors at parse time.
+1. **Unit tests** - Every module has a test file with mocked dependencies. Tests were written alongside the code and must pass before committing.
+2. **Manual code review** - Each generated file was read and verified for correctness before committing.
+3. **QoS eval set** - 10 transcripts with known ground truth provide end-to-end validation of the full pipeline.
+4. **Type annotations + Pydantic** - All data models are Pydantic v2 with `Literal` type constraints, catching schema errors at parse time.
 
 ---
 
