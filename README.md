@@ -289,11 +289,14 @@ Transcripts were generated with Claude Sonnet 4.6 via bifrost to accelerate draf
 
 ## What I'd Do Differently With More Time
 
-1. **Self-hosted models from day 1** — Use Ollama with `qwen2.5:3b` + `qwen2.5:7b` as the default. I used bifrost (API-backed) for speed during development; the architecture is designed for a zero-code swap.
+1. **Better UI framework** — Streamlit is great for prototyping but has real limitations: no real-time WebSocket streaming, no component-level state management, no proper routing. I'd rebuild the frontend in **Next.js** with a FastAPI backend — proper token streaming via SSE, role-based route guards, and a cleaner component model for the Regulatory Card.
 
-2. **Streaming UI** — Stream the evaluator's response token-by-token into the Regulatory Card for better UX.
+2. **Stronger models** — `qwen3.5:9b` was the right call for an 18GB unified memory constraint, but with more headroom the obvious upgrades are:
+   - **Trigger:** `qwen3:8b` (dense, 128K context, better instruction following than 9B MoE)
+   - **Evaluator:** `qwen3.5-35b-a3b` (35B total / 3B active MoE — fits 16GB VRAM, 44 tok/s, 262K context, Apache 2.0) or `qwen3:32b` for maximum reasoning quality on a single GPU
+   - On a multi-GPU box: `qwen3.5-122b-a10b` (122B MoE, beats GPT-5 mini on tool use per benchmarks)
 
-3. **Proper auth** — bcrypt password hashing, session tokens, per-user audit history.
+3. **Proper auth** — bcrypt password hashing, JWT session tokens, per-user audit history.
 
 4. **PDF export** — Generate a signed, timestamped PDF Regulatory Card for compliance teams.
 
@@ -302,6 +305,8 @@ Transcripts were generated with Claude Sonnet 4.6 via bifrost to accelerate draf
 6. **Retrieval tuning** — The `disagreement_threshold` of 0.5 is a reasonable default but should be calibrated against a larger ground-truth set.
 
 7. **Structured citations** — Parse turn numbers from transcripts at ingestion time so citations are always in the format `Turn N` rather than free-text.
+
+8. **Async pipeline** — The trigger → retrieval → evaluation chain is sequential. With a proper async framework (FastAPI + asyncio), retrieval and trigger detection could overlap with the start of the evaluation prompt construction, shaving latency.
 
 ---
 
